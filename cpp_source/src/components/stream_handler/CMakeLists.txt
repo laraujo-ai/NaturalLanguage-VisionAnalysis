@@ -1,9 +1,3 @@
-cmake_minimum_required(VERSION 3.16)
-project(GStreamerRTSPDemo)
-
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 # Find required packages
 find_package(PkgConfig REQUIRED)
 find_package(OpenCV REQUIRED)
@@ -12,50 +6,39 @@ find_package(OpenCV REQUIRED)
 pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0)
 pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
 
-# Include directories
-include_directories(${OpenCV_INCLUDE_DIRS})
-include_directories(${GSTREAMER_INCLUDE_DIRS})
-include_directories(${GST_APP_INCLUDE_DIRS})
-
-# Source files
-set(SOURCES
-    src/vision_stream_handlers.cpp
-    ../../common/include/interfaces.hpp
-    demo.cpp
-)
-
-# Create executable
-add_executable(rtsp_demo ${SOURCES})
-
-add_library(stream_handler SHARED src/vision_stream_handlers.cpp ../../common/include/interfaces.hpp)
+# Create library
+add_library(stream_handler SHARED src/vision_stream_handlers.cpp)
 
 # Link libraries
-target_link_libraries(rtsp_demo
+target_link_libraries(stream_handler PUBLIC
     ${OpenCV_LIBS}
     ${GSTREAMER_LIBRARIES}
     ${GST_APP_LIBRARIES}
     pthread
 )
-target_link_libraries(stream_handler
-    ${OpenCV_LIBS}
-    ${GSTREAMER_LIBRARIES}
-    ${GST_APP_LIBRARIES}
-    pthread
+
+# Include directories
+target_include_directories(stream_handler PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../common/include
+    ${OpenCV_INCLUDE_DIRS}
+    ${GSTREAMER_INCLUDE_DIRS}
+    ${GST_APP_INCLUDE_DIRS}
 )
 
 # Compiler flags
-target_compile_options(rtsp_demo PRIVATE
+target_compile_options(stream_handler PRIVATE
     ${GSTREAMER_CFLAGS_OTHER}
     ${GST_APP_CFLAGS_OTHER}
 )
 
-# Add include paths
-target_include_directories(rtsp_demo PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../common/include
-)
-
-message(STATUS "GStreamer found: ${GSTREAMER_FOUND}")
-message(STATUS "GStreamer includes: ${GSTREAMER_INCLUDE_DIRS}")
-message(STATUS "GStreamer libraries: ${GSTREAMER_LIBRARIES}")
-message(STATUS "OpenCV version: ${OpenCV_VERSION}")
+# Optional: Build demo executable (can be disabled)
+option(BUILD_STREAM_HANDLER_DEMO "Build stream handler demo" OFF)
+if(BUILD_STREAM_HANDLER_DEMO)
+    add_executable(stream_handler_demo demo.cpp)
+    target_link_libraries(stream_handler_demo PRIVATE stream_handler)
+    target_include_directories(stream_handler_demo PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../common/include
+    )
+endif()

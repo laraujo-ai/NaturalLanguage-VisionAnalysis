@@ -1,5 +1,8 @@
 #include "vision_stream_handlers.hpp"
 #include "frame_samplers.hpp"
+#include <iostream>
+#include <chrono>
+#include <thread>
 
 int main()
 {
@@ -20,14 +23,14 @@ int main()
         auto clip = handler.getNextClip();
         if (clip.has_value()) {
             clip_count++;
-            frame_sampler.sampleFrames(clip, 10);
+            auto sampled = frame_sampler.sampleFrames(clip.value(), 10);
             std::cout << "Received clip #" << clip_count
                      << " - ID: " << clip->clip_id
                      << ", Camera: " << clip->camera_id
                      << ", Frames: " << clip->frames.size()
-                     << ", Timestamp start: " << clip->start_timestamp_ms << "ms" << std::endl
-                     << ", Timestamp end : " << clip->end_timestamp_ms << "ms" << std::endl
-                     << ", sampled frames size :" << clip->sampled_frames.size() << std::endl;
+                     << ", Timestamp start: " << clip->start_timestamp_ms << "ms"
+                     << ", Timestamp end : " << clip->end_timestamp_ms << "ms"
+                     << ", sampled frames size :" << sampled.sampled_frames.size() << std::endl;
 
             if (!clip->frames.empty()) {
                 const auto& first_frame = clip->frames[0];
