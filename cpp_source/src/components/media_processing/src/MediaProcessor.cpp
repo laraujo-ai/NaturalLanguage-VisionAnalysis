@@ -1,4 +1,6 @@
 #include "../include/MediaProcessor.hpp"
+#include "../../stream_handler/include/vision_stream_handlers.hpp"
+#include "../../frame_sampler/include/frame_samplers.hpp"
 #include <iostream>
 #include <algorithm>
 
@@ -7,17 +9,8 @@ namespace nl_video_analysis {
 MediaProcessor::MediaProcessor(const MediaProcessorConfig& config)
     : config_(config), is_running_(false) {
 
-    // Create factory
-    factory_ = std::make_unique<VisionAnalysisFactory>();
-
-    // Create frame sampler based on config
-    FrameSamplerType sampler_type = FrameSamplerType::UNIFORM;
-    if (config_.sampler_type == "uniform") {
-        sampler_type = FrameSamplerType::UNIFORM;
-    }
-    // Add more sampler types as needed
-
-    frame_sampler_ = factory_->createFrameSampler(sampler_type);
+    // Create frame sampler directly - using uniform sampler
+    frame_sampler_ = std::make_unique<UniformFrameSampler>();
 
     std::cout << "MediaProcessor created - Stream handling + Frame sampling only" << std::endl;
     std::cout << "  Max connections: " << config_.max_connections << std::endl;
@@ -36,16 +29,23 @@ bool MediaProcessor::addSource(const std::string& source_url, const std::string&
         return false;
     }
 
-    StreamSourceType type = StreamSourceType::AUTO_DETECT;
-    if (source_type == "rtsp") {
-        type = StreamSourceType::RTSP_STREAM;
-    } else if (source_type == "file") {
-        type = StreamSourceType::VIDEO_FILE;
-    }
+    std::unique_ptr<IStreamHandler> handler;
 
-    auto handler = factory_->createStreamHandler(type, config_);
-    if (!handler) {
-        std::cerr << "Failed to create handler for source: " << source_url << std::endl;
+    // Create stream handler directly based on type
+    if (source_type == "rtsp") {
+        auto rtsp_handler = std::make_unique<GStreamerRTSPHandler>(
+            config_.gst_buffer_size,
+            config_.queue_max_size,
+            config_.gst_target_fps,
+            config_.gst_frame_width,
+            config_.gst_frame_height
+        );
+        rtsp_handler->setFramesPerClip(config_.frames_per_clip);
+        handler = std::move(rtsp_handler);
+    } else if (source_type == "file") {
+        handler = std::make_unique<OpenCVFileHandler>(config_.frames_per_clip);
+    } else {
+        std::cerr << "Unknown source type: " << source_type << std::endl;
         return false;
     }
 

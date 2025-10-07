@@ -115,12 +115,6 @@ int main(int argc, char* argv[])
             // No clips available, sleep briefly
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
-
-        // Optional: Add runtime limit for demo
-        // if (std::chrono::steady_clock::now() - start_time > std::chrono::seconds(60)) {
-        //     std::cout << "\nDemo time limit reached (60s). Stopping..." << std::endl;
-        //     break;
-        // }
     }
 
     // Shutdown

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../../../common/include/interfaces.hpp"
-#include "../../../common/include/factories.hpp"
 #include "../../../common/include/config_parser.hpp"
 #include <vector>
 #include <memory>
@@ -16,7 +15,6 @@ namespace nl_video_analysis {
 class MediaProcessor {
 private:
     MediaProcessorConfig config_;
-    std::unique_ptr<VisionAnalysisFactory> factory_;
 
     // Stream handlers for each camera
     std::vector<std::unique_ptr<IStreamHandler>> stream_handlers_;

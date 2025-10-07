@@ -3,7 +3,6 @@ find_package(OpenCV REQUIRED)
 # Create common library with source files
 add_library(common SHARED
     src/config_parser.cpp
-    src/vision_factories.cpp
 )
 
 # Link libraries
