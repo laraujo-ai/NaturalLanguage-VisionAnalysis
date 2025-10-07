@@ -2,30 +2,48 @@
 #include <iostream>
 #include <algorithm>
 
-namespace vision_analysis {
+namespace nl_video_analysis {
 
 MediaProcessor::MediaProcessor(const MediaProcessorConfig& config)
     : config_(config), is_running_(false) {
-    factory_ = std::make_unique<VisionAnalysisFactory>(config_.vision_config);
 
-    frame_sampler_ = factory_->createFrameSampler(config_.sampler_type);
-    object_detector_ = factory_->createObjectDetector(config_.vision_config);
-    storage_handler_ = factory_->createStorageHandler(config_.storage_type);
+    // Create factory
+    factory_ = std::make_unique<VisionAnalysisFactory>();
 
-    std::cout << "MediaProcessor created with ONNX-based vision analysis pipeline" << std::endl;
+    // Create frame sampler based on config
+    FrameSamplerType sampler_type = FrameSamplerType::UNIFORM;
+    if (config_.sampler_type == "uniform") {
+        sampler_type = FrameSamplerType::UNIFORM;
+    }
+    // Add more sampler types as needed
+
+    frame_sampler_ = factory_->createFrameSampler(sampler_type);
+
+    std::cout << "MediaProcessor created - Stream handling + Frame sampling only" << std::endl;
+    std::cout << "  Max connections: " << config_.max_connections << std::endl;
+    std::cout << "  Frames per clip: " << config_.frames_per_clip << std::endl;
+    std::cout << "  Sampled frames: " << config_.sampled_frames_count << std::endl;
+    std::cout << "  Sampler type: " << config_.sampler_type << std::endl;
 }
 
 MediaProcessor::~MediaProcessor() {
     stop();
 }
 
-bool MediaProcessor::addSource(const std::string& source_url, const std::string& camera_id) {
-    if (stream_handlers_.size() >= config_.max_connections) {
-        std::cerr << "Maximum connections reached" << std::endl;
+bool MediaProcessor::addSource(const std::string& source_url, const std::string& camera_id, const std::string& source_type) {
+    if (stream_handlers_.size() >= static_cast<size_t>(config_.max_connections)) {
+        std::cerr << "Maximum connections reached (" << config_.max_connections << ")" << std::endl;
         return false;
     }
 
-    auto handler = factory_->createAutoDetectHandler(source_url);
+    StreamSourceType type = StreamSourceType::AUTO_DETECT;
+    if (source_type == "rtsp") {
+        type = StreamSourceType::RTSP_STREAM;
+    } else if (source_type == "file") {
+        type = StreamSourceType::VIDEO_FILE;
+    }
+
+    auto handler = factory_->createStreamHandler(type, config_);
     if (!handler) {
         std::cerr << "Failed to create handler for source: " << source_url << std::endl;
         return false;
@@ -36,58 +54,13 @@ bool MediaProcessor::addSource(const std::string& source_url, const std::string&
 
     if (handler->startStream(source_url)) {
         stream_handlers_.push_back(std::move(handler));
-        std::cout << "Added source: " << source_url << " for camera: " << final_camera_id << std::endl;
+        camera_ids_.push_back(final_camera_id);
+        std::cout << "Added source: " << source_url << " as camera: " << final_camera_id
+                  << " (type: " << source_type << ")" << std::endl;
         return true;
     }
 
-    return false;
-}
-
-bool MediaProcessor::addRTSPConnection(const std::string& rtsp_url, const std::string& camera_id) {
-    if (stream_handlers_.size() >= config_.max_connections) {
-        std::cerr << "Maximum connections reached" << std::endl;
-        return false;
-    }
-
-    auto handler = factory_->createStreamHandler(StreamSourceType::RTSP_STREAM);
-    if (!handler) {
-        std::cerr << "Failed to create RTSP handler" << std::endl;
-        return false;
-    }
-
-    std::string final_camera_id = camera_id.empty() ?
-        "rtsp_camera_" + std::to_string(stream_handlers_.size() + 1) : camera_id;
-
-    if (handler->startStream(rtsp_url)) {
-        stream_handlers_.push_back(std::move(handler));
-        std::cout << "Added RTSP connection: " << rtsp_url << " for camera: " << final_camera_id << std::endl;
-        return true;
-    }
-
-    return false;
-}
-
-bool MediaProcessor::addVideoFile(const std::string& file_path, const std::string& camera_id) {
-    if (stream_handlers_.size() >= config_.max_connections) {
-        std::cerr << "Maximum connections reached" << std::endl;
-        return false;
-    }
-
-    auto handler = factory_->createStreamHandler(StreamSourceType::VIDEO_FILE);
-    if (!handler) {
-        std::cerr << "Failed to create file handler" << std::endl;
-        return false;
-    }
-
-    std::string final_camera_id = camera_id.empty() ?
-        "file_" + std::to_string(stream_handlers_.size() + 1) : camera_id;
-
-    if (handler->startStream(file_path)) {
-        stream_handlers_.push_back(std::move(handler));
-        std::cout << "Added video file: " << file_path << " for camera: " << final_camera_id << std::endl;
-        return true;
-    }
-
+    std::cerr << "Failed to start stream: " << source_url << std::endl;
     return false;
 }
 
@@ -97,14 +70,19 @@ void MediaProcessor::start() {
         return;
     }
 
+    if (stream_handlers_.empty()) {
+        std::cerr << "No stream handlers added. Cannot start." << std::endl;
+        return;
+    }
+
     is_running_ = true;
 
+    // Only start clip processing and frame processing threads
     processing_threads_.emplace_back(&MediaProcessor::clipProcessingLoop, this);
     processing_threads_.emplace_back(&MediaProcessor::frameProcessingLoop, this);
-    processing_threads_.emplace_back(&MediaProcessor::objectProcessingLoop, this);
-    processing_threads_.emplace_back(&MediaProcessor::storageProcessingLoop, this);
 
-    std::cout << "MediaProcessor started with " << processing_threads_.size() << " threads" << std::endl;
+    std::cout << "MediaProcessor started with " << stream_handlers_.size()
+              << " streams and " << processing_threads_.size() << " processing threads" << std::endl;
 }
 
 void MediaProcessor::stop() {
@@ -112,16 +90,19 @@ void MediaProcessor::stop() {
         return;
     }
 
+    std::cout << "Stopping MediaProcessor..." << std::endl;
     is_running_ = false;
 
+    // Stop all streams
     for (auto& handler : stream_handlers_) {
         handler->stopStream();
     }
 
+    // Notify all waiting threads
     clip_queue_cv_.notify_all();
     sampled_frames_cv_.notify_all();
-    tracked_objects_cv_.notify_all();
 
+    // Join all threads
     for (auto& thread : processing_threads_) {
         if (thread.joinable()) {
             thread.join();
@@ -130,6 +111,7 @@ void MediaProcessor::stop() {
 
     processing_threads_.clear();
     stream_handlers_.clear();
+    camera_ids_.clear();
 
     std::cout << "MediaProcessor stopped" << std::endl;
 }
@@ -139,78 +121,66 @@ bool MediaProcessor::isRunning() const {
 }
 
 void MediaProcessor::clipProcessingLoop() {
+    std::cout << "Clip processing thread started" << std::endl;
+
     while (is_running_) {
-        for (auto& handler : stream_handlers_) {
+        for (size_t i = 0; i < stream_handlers_.size(); ++i) {
+            auto& handler = stream_handlers_[i];
             if (handler->isActive()) {
                 auto clip = handler->getNextClip();
                 if (clip.has_value()) {
                     std::unique_lock<std::mutex> lock(clip_queue_mutex_);
-                    if (clip_queue_.size() < config_.queue_max_size) {
+                    if (clip_queue_.size() < static_cast<size_t>(config_.queue_max_size)) {
+                        // Set camera_id from our stored list
+                        clip.value().camera_id = camera_ids_[i];
                         clip_queue_.push(std::move(clip.value()));
                         clip_queue_cv_.notify_one();
+
+                        std::cout << "Clip queued from camera: " << camera_ids_[i]
+                                  << " (queue size: " << clip_queue_.size() << ")" << std::endl;
+                    } else {
+                        std::cerr << "Clip queue full, dropping clip from " << camera_ids_[i] << std::endl;
                     }
                 }
             }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
+
+    std::cout << "Clip processing thread stopped" << std::endl;
 }
 
 void MediaProcessor::frameProcessingLoop() {
+    std::cout << "Frame processing thread started" << std::endl;
+
     while (is_running_) {
         std::unique_lock<std::mutex> lock(clip_queue_mutex_);
         clip_queue_cv_.wait(lock, [this] { return !clip_queue_.empty() || !is_running_; });
+
+        if (!is_running_) break;
 
         if (!clip_queue_.empty()) {
             ClipContainer clip = std::move(clip_queue_.front());
             clip_queue_.pop();
             lock.unlock();
 
+            // Sample frames from clip
             SampledFrames sampled = frame_sampler_->sampleFrames(clip, config_.sampled_frames_count);
 
             std::unique_lock<std::mutex> sampled_lock(sampled_frames_mutex_);
-            if (sampled_frames_queue_.size() < config_.queue_max_size) {
+            if (sampled_frames_queue_.size() < static_cast<size_t>(config_.queue_max_size)) {
+                std::cout << "Sampled " << sampled.sampled_frames.size()
+                          << " frames from clip " << sampled.clip_id
+                          << " (camera: " << sampled.camera_id << ")" << std::endl;
                 sampled_frames_queue_.push(std::move(sampled));
                 sampled_frames_cv_.notify_one();
+            } else {
+                std::cerr << "Sampled frames queue full, dropping sampled frames" << std::endl;
             }
         }
     }
-}
 
-void MediaProcessor::objectProcessingLoop() {
-    while (is_running_) {
-        std::unique_lock<std::mutex> lock(sampled_frames_mutex_);
-        sampled_frames_cv_.wait(lock, [this] { return !sampled_frames_queue_.empty() || !is_running_; });
-
-        if (!sampled_frames_queue_.empty()) {
-            SampledFrames frames = std::move(sampled_frames_queue_.front());
-            sampled_frames_queue_.pop();
-            lock.unlock();
-
-            std::vector<TrackedObject> tracked = object_detector_->detectAndTrack(frames);
-
-            std::unique_lock<std::mutex> tracked_lock(tracked_objects_mutex_);
-            if (tracked_objects_queue_.size() < config_.queue_max_size) {
-                tracked_objects_queue_.push(std::move(tracked));
-                tracked_objects_cv_.notify_one();
-            }
-        }
-    }
-}
-
-void MediaProcessor::storageProcessingLoop() {
-    while (is_running_) {
-        std::unique_lock<std::mutex> lock(tracked_objects_mutex_);
-        tracked_objects_cv_.wait(lock, [this] { return !tracked_objects_queue_.empty() || !is_running_; });
-
-        if (!tracked_objects_queue_.empty()) {
-            std::vector<TrackedObject> objects = std::move(tracked_objects_queue_.front());
-            tracked_objects_queue_.pop();
-            lock.unlock();
-
-            storage_handler_->saveEmbeddings(objects);
-        }
-    }
+    std::cout << "Frame processing thread stopped" << std::endl;
 }
 
 size_t MediaProcessor::getClipQueueSize() const {
@@ -223,9 +193,14 @@ size_t MediaProcessor::getSampledFramesQueueSize() const {
     return sampled_frames_queue_.size();
 }
 
-size_t MediaProcessor::getTrackedObjectsQueueSize() const {
-    std::lock_guard<std::mutex> lock(tracked_objects_mutex_);
-    return tracked_objects_queue_.size();
+bool MediaProcessor::getNextSampledFrames(SampledFrames& frames) {
+    std::lock_guard<std::mutex> lock(sampled_frames_mutex_);
+    if (sampled_frames_queue_.empty()) {
+        return false;
+    }
+    frames = std::move(sampled_frames_queue_.front());
+    sampled_frames_queue_.pop();
+    return true;
 }
 
 void MediaProcessor::setConfig(const MediaProcessorConfig& config) {

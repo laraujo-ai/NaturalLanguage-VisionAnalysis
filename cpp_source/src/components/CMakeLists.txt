@@ -1,2 +1,3 @@
 add_subdirectory(frame_sampler)
-add_subdirectory(stream_handler) 
+add_subdirectory(stream_handler)
+add_subdirectory(media_processing) 

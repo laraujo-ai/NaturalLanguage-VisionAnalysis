@@ -13,6 +13,7 @@ add_executable(${PROJECT_NAME} src/main.cpp)
 
 # Link against libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE
+    media_processing
     stream_handler
     frame_sampler
     common
@@ -20,8 +21,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 
 # Include directories for main
 target_include_directories(${PROJECT_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/components/stream_handler/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/components/frame_sampler/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/common/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
