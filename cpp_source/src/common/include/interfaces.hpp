@@ -63,13 +63,13 @@ public:
 class IFrameSampler {
 public:
     virtual ~IFrameSampler() = default;
-    virtual SampledFrames sampleFrames(const ClipContainer& clip, int num_frames) = 0;
+    virtual void sampleFrames(ClipContainer& clip, int num_frames) = 0;
 };
 
 class IObjectDetector {
 public:
     virtual ~IObjectDetector() = default;
-    virtual std::vector<TrackedObject> detectAndTrack(const SampledFrames& frames) = 0;
+    virtual std::vector<TrackedObject> detectAndTrack(const ClipContainer& clip) = 0;
 };
 
 class IStorageHandler {

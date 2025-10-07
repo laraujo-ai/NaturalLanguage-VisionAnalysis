@@ -3,11 +3,11 @@
 
 namespace nl_video_analysis {
 
-void UniformFrameSampler::sampleFrames(const ClipContainer& clip, int num_frames) {
+void UniformFrameSampler::sampleFrames(ClipContainer& clip, int num_frames) {
     std::vector<cv::Mat> sampled;
 
     if (clip.frames.empty()) {
-        return clip;
+        return;
     }
 
     int total_frames = clip.frames.size();
@@ -22,6 +22,6 @@ void UniformFrameSampler::sampleFrames(const ClipContainer& clip, int num_frames
             sampled.push_back(clip.frames[index].clone());
         }
     }
-    clip.sampled_frames = sampled;
+    clip.sampled_frames = std::move(sampled);
 }
 }

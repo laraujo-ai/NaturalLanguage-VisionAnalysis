@@ -14,14 +14,10 @@ enum class StreamSourceType {
 
 enum class FrameSamplerType {
     UNIFORM,
-    ADAPTIVE,
-    KEYFRAME
 };
 
 enum class StorageType {
     LOCAL_DISK,
-    CLOUD_S3,
-    MILVUS_DB
 };
 
 struct VisionAnalysisConfig {
@@ -54,11 +50,11 @@ public:
     VisionAnalysisFactory(const VisionAnalysisConfig& config = VisionAnalysisConfig{});
 
     std::unique_ptr<IStreamHandler> createStreamHandler(StreamSourceType type) override;
+    std::unique_ptr<IStreamHandler> createAutoDetectHandler(const std::string& source);
     std::unique_ptr<IFrameSampler> createFrameSampler(FrameSamplerType type) override;
     std::unique_ptr<IObjectDetector> createObjectDetector(const VisionAnalysisConfig& config) override;
     std::unique_ptr<IStorageHandler> createStorageHandler(StorageType type) override;
 
-    std::unique_ptr<IStreamHandler> createAutoDetectHandler(const std::string& source);
     void setDefaultConfig(const VisionAnalysisConfig& config) { default_config_ = config; }
     VisionAnalysisConfig getDefaultConfig() const { return default_config_; }
 };

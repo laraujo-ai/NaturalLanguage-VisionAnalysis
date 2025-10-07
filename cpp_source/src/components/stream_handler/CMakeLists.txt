@@ -2,11 +2,9 @@
 find_package(PkgConfig REQUIRED)
 find_package(OpenCV REQUIRED)
 
-# Find GStreamer
 pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0)
 pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
 
-# Create library
 add_library(stream_handler SHARED src/vision_stream_handlers.cpp)
 
 # Link libraries
