@@ -77,12 +77,11 @@ void MediaProcessor::start() {
 
     is_running_ = true;
 
-    // Only start clip processing and frame processing threads
+    // Start single clip processing thread
     processing_threads_.emplace_back(&MediaProcessor::clipProcessingLoop, this);
-    processing_threads_.emplace_back(&MediaProcessor::frameProcessingLoop, this);
 
     std::cout << "MediaProcessor started with " << stream_handlers_.size()
-              << " streams and " << processing_threads_.size() << " processing threads" << std::endl;
+              << " streams and " << processing_threads_.size() << " processing thread(s)" << std::endl;
 }
 
 void MediaProcessor::stop() {
@@ -100,7 +99,6 @@ void MediaProcessor::stop() {
 
     // Notify all waiting threads
     clip_queue_cv_.notify_all();
-    sampled_frames_cv_.notify_all();
 
     // Join all threads
     for (auto& thread : processing_threads_) {
@@ -129,15 +127,21 @@ void MediaProcessor::clipProcessingLoop() {
             if (handler->isActive()) {
                 auto clip = handler->getNextClip();
                 if (clip.has_value()) {
+                    // Set camera_id from our stored list
+                    clip.value().camera_id = camera_ids_[i];
+
+                    // Sample frames directly on the clip
+                    frame_sampler_->sampleFrames(clip.value(), config_.sampled_frames_count);
+
                     std::unique_lock<std::mutex> lock(clip_queue_mutex_);
                     if (clip_queue_.size() < static_cast<size_t>(config_.queue_max_size)) {
-                        // Set camera_id from our stored list
-                        clip.value().camera_id = camera_ids_[i];
+                        std::cout << "Clip processed from camera: " << camera_ids_[i]
+                                  << " (frames: " << clip.value().frames.size()
+                                  << ", sampled: " << clip.value().sampled_frames.size()
+                                  << ", queue size: " << clip_queue_.size() + 1 << ")" << std::endl;
+
                         clip_queue_.push(std::move(clip.value()));
                         clip_queue_cv_.notify_one();
-
-                        std::cout << "Clip queued from camera: " << camera_ids_[i]
-                                  << " (queue size: " << clip_queue_.size() << ")" << std::endl;
                     } else {
                         std::cerr << "Clip queue full, dropping clip from " << camera_ids_[i] << std::endl;
                     }
@@ -150,56 +154,18 @@ void MediaProcessor::clipProcessingLoop() {
     std::cout << "Clip processing thread stopped" << std::endl;
 }
 
-void MediaProcessor::frameProcessingLoop() {
-    std::cout << "Frame processing thread started" << std::endl;
-
-    while (is_running_) {
-        std::unique_lock<std::mutex> lock(clip_queue_mutex_);
-        clip_queue_cv_.wait(lock, [this] { return !clip_queue_.empty() || !is_running_; });
-
-        if (!is_running_) break;
-
-        if (!clip_queue_.empty()) {
-            ClipContainer clip = std::move(clip_queue_.front());
-            clip_queue_.pop();
-            lock.unlock();
-
-            // Sample frames from clip
-            SampledFrames sampled = frame_sampler_->sampleFrames(clip, config_.sampled_frames_count);
-
-            std::unique_lock<std::mutex> sampled_lock(sampled_frames_mutex_);
-            if (sampled_frames_queue_.size() < static_cast<size_t>(config_.queue_max_size)) {
-                std::cout << "Sampled " << sampled.sampled_frames.size()
-                          << " frames from clip " << sampled.clip_id
-                          << " (camera: " << sampled.camera_id << ")" << std::endl;
-                sampled_frames_queue_.push(std::move(sampled));
-                sampled_frames_cv_.notify_one();
-            } else {
-                std::cerr << "Sampled frames queue full, dropping sampled frames" << std::endl;
-            }
-        }
-    }
-
-    std::cout << "Frame processing thread stopped" << std::endl;
-}
-
 size_t MediaProcessor::getClipQueueSize() const {
     std::lock_guard<std::mutex> lock(clip_queue_mutex_);
     return clip_queue_.size();
 }
 
-size_t MediaProcessor::getSampledFramesQueueSize() const {
-    std::lock_guard<std::mutex> lock(sampled_frames_mutex_);
-    return sampled_frames_queue_.size();
-}
-
-bool MediaProcessor::getNextSampledFrames(SampledFrames& frames) {
-    std::lock_guard<std::mutex> lock(sampled_frames_mutex_);
-    if (sampled_frames_queue_.empty()) {
+bool MediaProcessor::getNextClip(ClipContainer& clip) {
+    std::lock_guard<std::mutex> lock(clip_queue_mutex_);
+    if (clip_queue_.empty()) {
         return false;
     }
-    frames = std::move(sampled_frames_queue_.front());
-    sampled_frames_queue_.pop();
+    clip = std::move(clip_queue_.front());
+    clip_queue_.pop();
     return true;
 }
 

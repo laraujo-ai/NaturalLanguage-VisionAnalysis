@@ -81,38 +81,38 @@ int main(int argc, char* argv[])
     std::cout << "  Processing started! Press Ctrl+C to stop  " << std::endl;
     std::cout << "============================================\n" << std::endl;
 
-    // Main loop - process sampled frames
-    int sampled_count = 0;
+    // Main loop - process clips with sampled frames
+    int clip_count = 0;
     auto start_time = std::chrono::steady_clock::now();
 
     while (running && processor.isRunning()) {
-        nl_video_analysis::SampledFrames frames;
+        nl_video_analysis::ClipContainer clip;
 
-        if (processor.getNextSampledFrames(frames)) {
-            sampled_count++;
+        if (processor.getNextClip(clip)) {
+            clip_count++;
             auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
                 std::chrono::steady_clock::now() - start_time).count();
 
-            std::cout << "\n[" << elapsed << "s] Received sampled frames #" << sampled_count << std::endl;
-            std::cout << "  Camera ID: " << frames.camera_id << std::endl;
-            std::cout << "  Clip ID: " << frames.clip_id << std::endl;
-            std::cout << "  Frames: " << frames.sampled_frames.size() << std::endl;
-            std::cout << "  Timestamp: " << frames.start_timestamp_ms << " - "
-                      << frames.end_timestamp_ms << " ms" << std::endl;
+            std::cout << "\n[" << elapsed << "s] Received clip #" << clip_count << std::endl;
+            std::cout << "  Camera ID: " << clip.camera_id << std::endl;
+            std::cout << "  Clip ID: " << clip.clip_id << std::endl;
+            std::cout << "  Total frames: " << clip.frames.size() << std::endl;
+            std::cout << "  Sampled frames: " << clip.sampled_frames.size() << std::endl;
+            std::cout << "  Timestamp: " << clip.start_timestamp_ms << " - "
+                      << clip.end_timestamp_ms << " ms" << std::endl;
 
-            if (!frames.sampled_frames.empty()) {
-                const auto& first_frame = frames.sampled_frames[0];
+            if (!clip.sampled_frames.empty()) {
+                const auto& first_frame = clip.sampled_frames[0];
                 std::cout << "  Frame size: " << first_frame.cols << "x" << first_frame.rows << std::endl;
             }
 
-            std::cout << "  Queue status - Clips: " << processor.getClipQueueSize()
-                      << ", Sampled: " << processor.getSampledFramesQueueSize() << std::endl;
+            std::cout << "  Queue size: " << processor.getClipQueueSize() << std::endl;
 
             // Optional: You can save or display frames here
-            // For example: cv::imwrite("frame_" + std::to_string(sampled_count) + ".jpg", frames.sampled_frames[0]);
+            // For example: cv::imwrite("frame_" + std::to_string(clip_count) + ".jpg", clip.sampled_frames[0]);
 
         } else {
-            // No frames available, sleep briefly
+            // No clips available, sleep briefly
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
 
@@ -134,9 +134,9 @@ int main(int argc, char* argv[])
     std::cout << "  Processing Summary" << std::endl;
     std::cout << "============================================" << std::endl;
     std::cout << "  Total runtime: " << total_time << " seconds" << std::endl;
-    std::cout << "  Sampled frames processed: " << sampled_count << std::endl;
+    std::cout << "  Clips processed: " << clip_count << std::endl;
     if (total_time > 0) {
-        std::cout << "  Average rate: " << (sampled_count / total_time) << " samples/sec" << std::endl;
+        std::cout << "  Average rate: " << (clip_count / total_time) << " clips/sec" << std::endl;
     }
     std::cout << "============================================\n" << std::endl;
 

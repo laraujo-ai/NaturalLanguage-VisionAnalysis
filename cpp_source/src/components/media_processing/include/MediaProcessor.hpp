@@ -25,22 +25,16 @@ private:
     // Frame sampler
     std::unique_ptr<IFrameSampler> frame_sampler_;
 
-    // Queues - only clips and sampled frames for now
+    // Single queue for clips (with sampled_frames populated)
     std::queue<ClipContainer> clip_queue_;
-    std::queue<ClipContainer> sampled_frames_queue_;
-
     mutable std::mutex clip_queue_mutex_;
-    mutable std::mutex sampled_frames_mutex_;
-
     std::condition_variable clip_queue_cv_;
-    std::condition_variable sampled_frames_cv_;
 
     std::vector<std::thread> processing_threads_;
     std::atomic<bool> is_running_;
 
-    // Processing loops
+    // Single processing loop
     void clipProcessingLoop();
-    void frameProcessingLoop();
 
     // Commented out for future use:
     // std::unique_ptr<IObjectDetector> object_detector_;
@@ -64,10 +58,9 @@ public:
     bool isRunning() const;
 
     size_t getClipQueueSize() const;
-    size_t getSampledFramesQueueSize() const;
 
-    // Get sampled frames for display/testing
-    bool getNextSampledFrames(SampledFrames& frames);
+    // Get next clip with sampled frames
+    bool getNextClip(ClipContainer& clip);
 
     void setConfig(const MediaProcessorConfig& config);
     MediaProcessorConfig getConfig() const;

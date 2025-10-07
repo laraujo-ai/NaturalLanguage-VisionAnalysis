@@ -4,7 +4,8 @@
 namespace nl_video_analysis {
 
 void UniformFrameSampler::sampleFrames(ClipContainer& clip, int num_frames) {
-    std::vector<cv::Mat> sampled;
+    // Clear any existing sampled frames
+    clip.sampled_frames.clear();
 
     if (clip.frames.empty()) {
         return;
@@ -14,14 +15,16 @@ void UniformFrameSampler::sampleFrames(ClipContainer& clip, int num_frames) {
     num_frames = std::min(num_frames, total_frames);
 
     if (num_frames == 1) {
-        sampled.push_back(clip.frames[total_frames / 2].clone());
+        // Sample the middle frame
+        clip.sampled_frames.push_back(clip.frames[total_frames / 2].clone());
     } else {
+        // Uniform sampling across the clip
         double step = static_cast<double>(total_frames - 1) / (num_frames - 1);
         for (int i = 0; i < num_frames; ++i) {
             int index = static_cast<int>(i * step);
-            sampled.push_back(clip.frames[index].clone());
+            clip.sampled_frames.push_back(clip.frames[index].clone());
         }
     }
-    clip.sampled_frames = std::move(sampled);
 }
+
 }
