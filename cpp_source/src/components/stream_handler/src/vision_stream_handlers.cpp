@@ -334,8 +334,8 @@ void GStreamerRTSPHandler::handlePipelineInfo(GstMessage* message) {
     if (debug_info) g_free(debug_info);
 }
 
-OpenCVFileHandler::OpenCVFileHandler(int frames_per_clip)
-    : is_active_(false), frames_per_clip_(frames_per_clip), current_frame_index_(0), fps_(0), total_frames_(0) {}
+OpenCVFileHandler::OpenCVFileHandler(int clip_length)
+    : is_active_(false), clip_length_(clip_length), current_frame_index_(0), fps_(0), total_frames_(0) {}
 
 OpenCVFileHandler::~OpenCVFileHandler() {
     stopStream();
@@ -361,6 +361,8 @@ bool OpenCVFileHandler::startStream(const std::string& file_path) {
     }
 
     fps_ = capture_.get(cv::CAP_PROP_FPS);
+    this->frames_per_clip_ = this->clip_length_ * fps_;
+    
     total_frames_ = static_cast<int>(capture_.get(cv::CAP_PROP_FRAME_COUNT));
     current_frame_index_ = 0;
     is_active_ = true;
@@ -405,7 +407,6 @@ std::optional<ClipContainer> OpenCVFileHandler::getNextClip() {
         return std::nullopt;
     }
 
-    // Calculate timestamps in milliseconds
     uint64_t start_timestamp_ms = (fps_ > 0) ?
         static_cast<uint64_t>(((current_frame_index_ - frames_read) / fps_) * 1000.0) : 0;
     uint64_t end_timestamp_ms = (fps_ > 0) ?
@@ -419,41 +420,6 @@ std::optional<ClipContainer> OpenCVFileHandler::getNextClip() {
 
 bool OpenCVFileHandler::isActive() const {
     return is_active_ && current_frame_index_ < total_frames_;
-}
-
-std::unique_ptr<IStreamHandler> StreamHandlerFactory::createHandler(StreamSourceType type) {
-    switch (type) {
-        case StreamSourceType::RTSP_STREAM:
-            return std::make_unique<GStreamerRTSPHandler>();
-        case StreamSourceType::VIDEO_FILE:
-            return std::make_unique<OpenCVFileHandler>();
-        default:
-            return nullptr;
-    }
-}
-
-StreamSourceType StreamHandlerFactory::detectSourceType(const std::string& source) {
-    if (source.substr(0, 7) == "rtsp://" || source.substr(0, 6) == "rtmp://") {
-        return StreamSourceType::RTSP_STREAM;
-    }
-
-    std::string lower_source = source;
-    std::transform(lower_source.begin(), lower_source.end(), lower_source.begin(), ::tolower);
-
-    std::vector<std::string> video_extensions = {".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv", ".webm"};
-    for (const auto& ext : video_extensions) {
-        if (lower_source.length() >= ext.length() &&
-            lower_source.substr(lower_source.length() - ext.length()) == ext) {
-            return StreamSourceType::VIDEO_FILE;
-        }
-    }
-
-    return StreamSourceType::VIDEO_FILE;
-}
-
-std::unique_ptr<IStreamHandler> StreamHandlerFactory::createAutoDetect(const std::string& source) {
-    StreamSourceType type = detectSourceType(source);
-    return createHandler(type);
 }
 
 }

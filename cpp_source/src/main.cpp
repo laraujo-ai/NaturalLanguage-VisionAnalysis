@@ -15,11 +15,9 @@ void signalHandler(int signum) {
 
 int main(int argc, char* argv[])
 {
-    // Register signal handler for graceful shutdown
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
 
-    // Check if config file is provided
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <config.json>" << std::endl;
         std::cerr << "Example: " << argv[0] << " config.json" << std::endl;
@@ -33,13 +31,11 @@ int main(int argc, char* argv[])
     std::cout << "============================================" << std::endl;
     std::cout << "\nLoading configuration from: " << config_file << std::endl;
 
-    // Parse configuration
     nl_video_analysis::MediaProcessorConfig config;
     try {
         config = nl_video_analysis::ConfigParser::parseFromFile(config_file);
         std::cout << "\nConfiguration loaded successfully!" << std::endl;
         std::cout << "  - Max connections: " << config.max_connections << std::endl;
-        std::cout << "  - Frames per clip: " << config.frames_per_clip << std::endl;
         std::cout << "  - Sampled frames: " << config.sampled_frames_count << std::endl;
         std::cout << "  - Sampler type: " << config.sampler_type << std::endl;
         std::cout << "  - Cameras configured: " << config.cameras.size() << std::endl;
@@ -53,11 +49,9 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    // Create MediaProcessor
     std::cout << "\nInitializing MediaProcessor..." << std::endl;
     nl_video_analysis::MediaProcessor processor(config);
 
-    // Add camera sources from config
     std::cout << "\nAdding camera sources..." << std::endl;
     for (const auto& camera : config.cameras) {
         std::cout << "  - " << camera.camera_id << " (" << camera.source_type << "): "
@@ -68,7 +62,6 @@ int main(int argc, char* argv[])
         }
     }
 
-    // Start processing
     std::cout << "\nStarting media processor..." << std::endl;
     processor.start();
 
@@ -81,7 +74,6 @@ int main(int argc, char* argv[])
     std::cout << "  Processing started! Press Ctrl+C to stop  " << std::endl;
     std::cout << "============================================\n" << std::endl;
 
-    // Main loop - process clips with sampled frames
     int clip_count = 0;
     auto start_time = std::chrono::steady_clock::now();
 
@@ -108,16 +100,12 @@ int main(int argc, char* argv[])
 
             std::cout << "  Queue size: " << processor.getClipQueueSize() << std::endl;
 
-            // Optional: You can save or display frames here
-            // For example: cv::imwrite("frame_" + std::to_string(clip_count) + ".jpg", clip.sampled_frames[0]);
 
         } else {
-            // No clips available, sleep briefly
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     }
 
-    // Shutdown
     std::cout << "\n\nShutting down MediaProcessor..." << std::endl;
     processor.stop();
 

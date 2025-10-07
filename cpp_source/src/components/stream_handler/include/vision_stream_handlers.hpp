@@ -91,14 +91,14 @@ private:
     std::string camera_id_;
     std::atomic<bool> is_active_;
     cv::VideoCapture capture_;
-
+    int clip_length_;
     int frames_per_clip_;
     int current_frame_index_;
     double fps_;
     int total_frames_;
 
 public:
-    OpenCVFileHandler(int frames_per_clip = 30);
+    OpenCVFileHandler(int clip_length = 5);
     ~OpenCVFileHandler();
 
     bool startStream(const std::string& file_path) override;
@@ -113,17 +113,4 @@ public:
     int getTotalFrames() const { return total_frames_; }
     int getCurrentFrame() const { return current_frame_index_; }
 };
-
-enum class StreamSourceType {
-    RTSP_STREAM,
-    VIDEO_FILE
-};
-
-class StreamHandlerFactory {
-public:
-    static std::unique_ptr<IStreamHandler> createHandler(StreamSourceType type);
-    static StreamSourceType detectSourceType(const std::string& source);
-    static std::unique_ptr<IStreamHandler> createAutoDetect(const std::string& source);
-};
-
 }

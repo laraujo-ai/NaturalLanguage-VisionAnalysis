@@ -9,14 +9,7 @@ namespace nl_video_analysis {
 MediaProcessor::MediaProcessor(const MediaProcessorConfig& config)
     : config_(config), is_running_(false) {
 
-    // Create frame sampler directly - using uniform sampler
     frame_sampler_ = std::make_unique<UniformFrameSampler>();
-
-    std::cout << "MediaProcessor created - Stream handling + Frame sampling only" << std::endl;
-    std::cout << "  Max connections: " << config_.max_connections << std::endl;
-    std::cout << "  Frames per clip: " << config_.frames_per_clip << std::endl;
-    std::cout << "  Sampled frames: " << config_.sampled_frames_count << std::endl;
-    std::cout << "  Sampler type: " << config_.sampler_type << std::endl;
 }
 
 MediaProcessor::~MediaProcessor() {
@@ -34,16 +27,15 @@ bool MediaProcessor::addSource(const std::string& source_url, const std::string&
     // Create stream handler directly based on type
     if (source_type == "rtsp") {
         auto rtsp_handler = std::make_unique<GStreamerRTSPHandler>(
-            config_.gst_buffer_size,
+            config_.clip_length,
             config_.queue_max_size,
             config_.gst_target_fps,
             config_.gst_frame_width,
             config_.gst_frame_height
         );
-        rtsp_handler->setFramesPerClip(config_.frames_per_clip);
         handler = std::move(rtsp_handler);
     } else if (source_type == "file") {
-        handler = std::make_unique<OpenCVFileHandler>(config_.frames_per_clip);
+        handler = std::make_unique<OpenCVFileHandler>(config_.clip_length);
     } else {
         std::cerr << "Unknown source type: " << source_type << std::endl;
         return false;
@@ -77,7 +69,6 @@ void MediaProcessor::start() {
 
     is_running_ = true;
 
-    // Start single clip processing thread
     processing_threads_.emplace_back(&MediaProcessor::clipProcessingLoop, this);
 
     std::cout << "MediaProcessor started with " << stream_handlers_.size()
@@ -88,19 +79,14 @@ void MediaProcessor::stop() {
     if (!is_running_) {
         return;
     }
-
-    std::cout << "Stopping MediaProcessor..." << std::endl;
     is_running_ = false;
 
-    // Stop all streams
     for (auto& handler : stream_handlers_) {
         handler->stopStream();
     }
 
-    // Notify all waiting threads
     clip_queue_cv_.notify_all();
 
-    // Join all threads
     for (auto& thread : processing_threads_) {
         if (thread.joinable()) {
             thread.join();
@@ -119,8 +105,6 @@ bool MediaProcessor::isRunning() const {
 }
 
 void MediaProcessor::clipProcessingLoop() {
-    std::cout << "Clip processing thread started" << std::endl;
-
     while (is_running_) {
         for (size_t i = 0; i < stream_handlers_.size(); ++i) {
             auto& handler = stream_handlers_[i];
@@ -150,8 +134,6 @@ void MediaProcessor::clipProcessingLoop() {
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
-
-    std::cout << "Clip processing thread stopped" << std::endl;
 }
 
 size_t MediaProcessor::getClipQueueSize() const {

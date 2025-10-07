@@ -89,8 +89,8 @@ MediaProcessorConfig ConfigParser::parseFromFile(const std::string& filepath) {
 
         if (key == "max_connections") {
             config.max_connections = parseInt(value);
-        } else if (key == "frames_per_clip") {
-            config.frames_per_clip = parseInt(value);
+        } else if (key == "clip_length") {
+            config.clip_length = parseInt(value);
         } else if (key == "sampler_type") {
             config.sampler_type = parseString(value);
         } else if (key == "sampled_frames_count") {
