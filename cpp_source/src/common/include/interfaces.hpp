@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <opencv2/opencv.hpp>
 #include <chrono>
+#include <Eigen/Dense>
 
 namespace nl_video_analysis {
 
@@ -47,12 +48,21 @@ class IFrameSampler {
     virtual void sampleFrames(ClipContainer& clip, int num_frames) = 0;
 };
 
-}
 struct Detection {
     float x1, y1, x2, y2;
     float score;
     int class_id;
 };
+
+class BaseTracklet {
+public:
+    virtual ~BaseTracklet() = default;
+    virtual void update(const Eigen::Vector4d& bbox, double conf) = 0;
+    virtual Eigen::Vector4d predict() = 0;
+    virtual Eigen::Vector4d get_state() const = 0;
+};
+
+}
 
 
 // class IStorageHandler {

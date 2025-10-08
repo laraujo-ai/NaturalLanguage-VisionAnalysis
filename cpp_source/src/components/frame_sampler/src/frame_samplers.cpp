@@ -3,7 +3,6 @@
 namespace nl_video_analysis {
 
 void UniformFrameSampler::sampleFrames(ClipContainer& clip, int num_frames) {
-    // Clear any existing sampled frames
     clip.sampled_frames.clear();
 
     if (clip.frames.empty()) {

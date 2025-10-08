@@ -27,6 +27,13 @@ struct ObjectDetectorConfig {
     float nms_threshold;
 };
 
+struct TrackerConfig {
+
+    int max_age;
+    int min_hits;
+    double iou_threshold;    
+};
+
 struct VideoAnalysisConfig {
     int max_connections = 10;
     int clip_length = 30;
@@ -38,7 +45,9 @@ struct VideoAnalysisConfig {
 
     std::vector<CameraConfig> cameras;
     ObjectDetectorConfig object_detector;
+    TrackerConfig tracker;
 
+    
     int gst_buffer_size = 5;
     int gst_drop_frames = 5;
     int gst_target_fps = 30;

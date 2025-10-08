@@ -17,6 +17,7 @@ VideoAnalysisConfig ConfigParser::parseFromFile(const std::string& filepath) {
     bool in_camera_object = false;
 
     bool in_detector_object = false;
+    bool in_tracker_object = false;
 
     while (std::getline(file, line)) {
         line = trim(line);
@@ -36,6 +37,10 @@ VideoAnalysisConfig ConfigParser::parseFromFile(const std::string& filepath) {
 
         if (line.find("\"object_detector\"") != std::string::npos) {
             in_detector_object = true;
+            continue;
+        }
+        if (line.find("\"tracker\"") != std::string::npos) {
+            in_tracker_object = true;
             continue;
         }
 
@@ -115,6 +120,31 @@ VideoAnalysisConfig ConfigParser::parseFromFile(const std::string& filepath) {
             continue;
         }
 
+        if(in_tracker_object)
+        {
+            if (line.find('}') != std::string::npos) {
+                in_tracker_object = false;
+                continue;
+            }
+
+            if (line.find("\"max_age\"") != std::string::npos) {
+                size_t colon = line.find(':');
+                if (colon != std::string::npos) {
+                    config.tracker.max_age = parseInt(line.substr(colon + 1));
+                } 
+            } else if (line.find("\"min_hits\"") != std::string::npos) {
+                size_t colon = line.find(':');
+                if (colon != std::string::npos) {
+                    config.tracker.min_hits = parseInt(line.substr(colon + 1));
+                }
+            } else if (line.find("\"iou_threshold\"") != std::string::npos) {
+                size_t colon = line.find(':');
+                if (colon != std::string::npos) {
+                    config.tracker.iou_threshold = std::stof(trim(line.substr(colon + 1)));
+                }
+            } 
+            continue;
+        }
         size_t colon = line.find(':');
         if (colon == std::string::npos) {
             continue;

@@ -1,7 +1,7 @@
 #ifndef ONNX_SESSION_HPP
 #define ONNX_SESSION_HPP
 
-#include <onnxruntime_cxx_api.h>
+#include <onnxruntime/core/session/onnxruntime_cxx_api.h>
 #include <string>
 #include <memory>
 

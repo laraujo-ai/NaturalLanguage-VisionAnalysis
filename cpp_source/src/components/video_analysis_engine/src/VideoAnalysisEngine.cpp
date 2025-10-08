@@ -7,6 +7,7 @@ VideoAnalysisEngine::VideoAnalysisEngine(const VideoAnalysisConfig& config)
 
     frame_sampler_ = std::make_unique<UniformFrameSampler>();
     object_detector_ = std::make_unique<YOLOXDetector>(config_.object_detector.weights_path, config_.object_detector.number_of_threads);
+    tracker_ = std::make_unique<nl_vision_analysis::SortTracker>(config_.tracker.max_age, config_.tracker.min_hits, config_.tracker.iou_threshold);
 }
 
 VideoAnalysisEngine::~VideoAnalysisEngine() {
@@ -109,7 +110,7 @@ void VideoAnalysisEngine::clipProcessingLoop() {
             if (handler->isActive()) {
                 auto clip = handler->getNextClip();
                 if (clip.has_value()) {
-                    // Set camera_id from our stored list
+                    // Set camera_id from our stored list. The id here will probrably be a unique name for the camera so a string.
                     clip.value().camera_id = camera_ids_[i];
 
                     frame_sampler_->sampleFrames(clip.value(), config_.sampled_frames_count);
@@ -141,8 +142,9 @@ void VideoAnalysisEngine::objectProcessingLoop()
         this->getNextClip(clip);
         for(auto frame : clip.sampled_frames)
         {
-            std::vector<Detection> detectionResult;
-            detectionResult = object_detector_->detect(frame, this->config_.object_detector.conf_threshold, this->config_.object_detector.nms_threshold);
+            std::vector<Detection> detectionResult = object_detector_->detect(frame, this->config_.object_detector.conf_threshold, this->config_.object_detector.nms_threshold);
+            std::vector<nlohmann::json> trackedObjects = tracker_->track(detectionResult);
+            
             for (int i(0); i < detectionResult.size(); i++)
             {
                 std::cout << "Detection  :" << i << std::endl;

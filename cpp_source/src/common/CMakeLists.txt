@@ -5,6 +5,7 @@ add_library(common SHARED
 target_link_libraries(common PUBLIC
     ${OpenCV_LIBS}
     onnxruntime
+    Eigen3::Eigen
 )
 
 target_include_directories(common PUBLIC

@@ -5,11 +5,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 
-# ============================================================================
-# Find all required libraries at the top level
-# ============================================================================
-
-# Find ONNX Runtime
 find_library(ONNXRUNTIME_LIB onnxruntime
     HINTS
         ${CMAKE_SOURCE_DIR}/../onnxruntime/lib
@@ -32,19 +27,23 @@ endif()
 message(STATUS "ONNX Runtime library: ${ONNXRUNTIME_LIB}")
 message(STATUS "ONNX Runtime include: ${ONNXRUNTIME_INCLUDE_DIR}")
 
-# Create ONNX Runtime imported target
 add_library(onnxruntime SHARED IMPORTED)
 set_target_properties(onnxruntime PROPERTIES
     IMPORTED_LOCATION ${ONNXRUNTIME_LIB}
     INTERFACE_INCLUDE_DIRECTORIES ${ONNXRUNTIME_INCLUDE_DIR}
 )
 
-# Find OpenCV
+find_package(Eigen3 REQUIRED)
+message(STATUS "Eigen3 version: ${EIGEN3_VERSION}")
+message(STATUS "Eigen3 include dirs: ${EIGEN3_INCLUDE_DIRS}")
+
+find_package(nlohmann_json REQUIRED)
+message(STATUS "nlohmann_json found")
+
 find_package(OpenCV REQUIRED)
 message(STATUS "OpenCV version: ${OpenCV_VERSION}")
 message(STATUS "OpenCV include dirs: ${OpenCV_INCLUDE_DIRS}")
 
-# Find GStreamer
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0)
 pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
@@ -52,9 +51,6 @@ pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
 message(STATUS "GStreamer found: ${GSTREAMER_FOUND}")
 message(STATUS "GStreamer include dirs: ${GSTREAMER_INCLUDE_DIRS}")
 
-# ============================================================================
-# Global include directories (available to all subdirectories)
-# ============================================================================
 include_directories(
     ${ONNXRUNTIME_INCLUDE_DIR}
     ${OpenCV_INCLUDE_DIRS}
@@ -73,6 +69,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     common
     object_detection
     onnxruntime
+    sort_tracker
     ${GSTREAMER_LIBRARIES}
     ${GST_APP_LIBRARIES}
 )

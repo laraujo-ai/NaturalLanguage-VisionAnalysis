@@ -15,6 +15,7 @@
 #include "../../../common/include/base_model.hpp"
 #include "../../stream_handler/include/vision_stream_handlers.hpp"
 #include "../../object_detection/include/yolox_detector.hpp"
+#include "../../tracker/include/sort_tracker.hpp"
 #include "../../frame_sampler/include/frame_samplers.hpp"
 
 
@@ -40,6 +41,7 @@ private:
 
     // Commented out for future use:
     std::unique_ptr<YOLOXDetector> object_detector_;
+    std::unique_ptr<nl_vision_analysis::SortTracker> tracker_;
     void objectProcessingLoop();
 
     // std::unique_ptr<IStorageHandler> storage_handler_;
@@ -52,7 +54,6 @@ public:
     VideoAnalysisEngine(const VideoAnalysisConfig& config = VideoAnalysisConfig{});
     ~VideoAnalysisEngine();
 
-    // Add sources from config
     bool addSource(const std::string& source_url, const std::string& camera_id, const std::string& source_type);
 
     void start();
@@ -61,10 +62,7 @@ public:
     bool isRunning() const;
 
     size_t getClipQueueSize() const;
-
-    // Get next clip with sampled frames
     bool getNextClip(ClipContainer& clip);
-
     void setConfig(const VideoAnalysisConfig& config);
     VideoAnalysisConfig getConfig() const;
 };
