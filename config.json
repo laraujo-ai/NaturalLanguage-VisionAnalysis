@@ -23,7 +23,8 @@
     "weights_path" : "/home/nvidia/projects/NaturalLanguage-VisionAnalysis/yolox_m.onnx",
     "number_of_threads" : 4,
     "conf_threshold" : 0.3,
-    "nms_threshold" : 0.45
+    "nms_threshold" : 0.45,
+    "is_fp16" : false
   },
   "tracker": {
     "max_age": 1,

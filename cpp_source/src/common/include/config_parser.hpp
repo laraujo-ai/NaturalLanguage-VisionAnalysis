@@ -25,6 +25,7 @@ struct ObjectDetectorConfig {
     int number_of_threads;
     float conf_threshold;
     float nms_threshold;
+    bool is_fp16;
 };
 
 struct TrackerConfig {

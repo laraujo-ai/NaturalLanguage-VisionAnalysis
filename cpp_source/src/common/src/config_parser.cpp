@@ -116,6 +116,11 @@ VideoAnalysisConfig ConfigParser::parseFromFile(const std::string& filepath) {
                 if (colon != std::string::npos) {
                     config.object_detector.nms_threshold = std::stof(trim(line.substr(colon + 1)));
                 }
+            }  else if (line.find("\"is_fp16\"") != std::string::npos) {
+                size_t colon = line.find(':');
+                if (colon != std::string::npos) {
+                    config.object_detector.is_fp16 = parseBool(line.substr(colon + 1));
+                }
             }
             continue;
         }

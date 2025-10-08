@@ -6,7 +6,7 @@ VideoAnalysisEngine::VideoAnalysisEngine(const VideoAnalysisConfig& config)
     : config_(config), is_running_(false) {
 
     frame_sampler_ = std::make_unique<UniformFrameSampler>();
-    object_detector_ = std::make_unique<YOLOXDetector>(config_.object_detector.weights_path, config_.object_detector.number_of_threads);
+    object_detector_ = std::make_unique<YOLOXDetector>(config_.object_detector.weights_path, config_.object_detector.number_of_threads, config_.object_detector.is_fp16);
     tracker_ = std::make_unique<nl_vision_analysis::SortTracker>(config_.tracker.max_age, config_.tracker.min_hits, config_.tracker.iou_threshold);
 }
 
@@ -144,13 +144,13 @@ void VideoAnalysisEngine::objectProcessingLoop()
         {
             std::vector<Detection> detectionResult = object_detector_->detect(frame, this->config_.object_detector.conf_threshold, this->config_.object_detector.nms_threshold);
             std::vector<nlohmann::json> trackedObjects = tracker_->track(detectionResult);
-            
+
             for (int i(0); i < detectionResult.size(); i++)
             {
                 std::cout << "Detection  :" << i << std::endl;
                 std::cout << "confidence :" << detectionResult[i].score << std::endl;
             }
-        }    
+        }
     }
 }
 

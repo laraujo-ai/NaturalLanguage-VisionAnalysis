@@ -6,7 +6,7 @@ namespace nl_video_analysis {
 
 class YOLOXDetector : public IBaseModel<cv::Mat, std::vector<Detection>> {
     public:
-        YOLOXDetector(const std::string& model_path, int num_threads = 1);
+        YOLOXDetector(const std::string& model_path, int num_threads = 1, bool is_fp16 = false);
         ~YOLOXDetector() = default;
 
         std::vector<Detection> detect(const cv::Mat& image, float score_thr = 0.25f, float nms_thr = 0.45f);
@@ -27,11 +27,13 @@ class YOLOXDetector : public IBaseModel<cv::Mat, std::vector<Detection>> {
         std::vector<int64_t> input_shape_;
         int target_h_;
         int target_w_;
+        bool is_fp16_;
 
         float score_threshold_;
         float nms_threshold_;
         float ratio_;
         std::vector<Ort::Float16_t> input_data_fp16_;
+        std::vector<float> input_data_fp32_;
 };
 
 }

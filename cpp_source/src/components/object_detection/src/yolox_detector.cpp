@@ -5,10 +5,11 @@
 
 namespace nl_video_analysis {
     
-YOLOXDetector::YOLOXDetector(const std::string& model_path, int num_threads)
+YOLOXDetector::YOLOXDetector(const std::string& model_path, int num_threads, bool is_fp16)
     : IBaseModel<cv::Mat, std::vector<Detection>>(model_path, num_threads),
       score_threshold_(0.25f),
       nms_threshold_(0.45f),
+      is_fp16_(is_fp16),
       ratio_(1.0f)
 {
     Ort::AllocatorWithDefaultOptions allocator;
@@ -18,6 +19,14 @@ YOLOXDetector::YOLOXDetector(const std::string& model_path, int num_threads)
 
     target_h_ = static_cast<int>(input_shape_[2]);
     target_w_ = static_cast<int>(input_shape_[3]);
+
+    // Print model input information for debugging
+    ONNXTensorElementDataType input_type = tensor_info.GetElementType();
+    std::cout << "YOLOX Model Info:" << std::endl;
+    std::cout << "  Input shape: [" << input_shape_[0] << ", " << input_shape_[1]
+              << ", " << input_shape_[2] << ", " << input_shape_[3] << "]" << std::endl;
+    std::cout << "  Expected data type: " << input_type << " (1=FLOAT, 10=FLOAT16)" << std::endl;
+    std::cout << "  Using FP16: " << (is_fp16_ ? "true" : "false") << std::endl;
 }
 
 std::vector<Detection> YOLOXDetector::detect(const cv::Mat& image, float score_thr, float nms_thr) {
@@ -30,25 +39,39 @@ std::vector<Ort::Value> YOLOXDetector::preprocess(const cv::Mat& input) {
     auto [input_data, ratio] = preprocessImage(input);
     ratio_ = ratio;
 
-    // Convert float32 to float16 as required by the model
-    std::vector<Ort::Float16_t> input_data_fp16(input_data.size());
-    for (size_t i = 0; i < input_data.size(); ++i) {
-        input_data_fp16[i] = Ort::Float16_t(input_data[i]);
-    }
-    input_data_fp16_ = std::move(input_data_fp16);
-
     std::vector<int64_t> input_shape = {1, 3, target_h_, target_w_};
-
-    auto tensor = Ort::Value::CreateTensor<Ort::Float16_t>(
-        memory_info_,
-        input_data_fp16_.data(),
-        input_data_fp16_.size(),
-        input_shape.data(),
-        input_shape.size()
-    );
-
     std::vector<Ort::Value> tensors;
-    tensors.push_back(std::move(tensor));
+
+    if (is_fp16_) {
+        // Convert float32 to float16 for FP16 models
+        std::vector<Ort::Float16_t> input_data_fp16(input_data.size());
+        for (size_t i = 0; i < input_data.size(); ++i) {
+            input_data_fp16[i] = Ort::Float16_t(input_data[i]);
+        }
+        input_data_fp16_ = std::move(input_data_fp16);
+
+        auto tensor = Ort::Value::CreateTensor<Ort::Float16_t>(
+            memory_info_,
+            input_data_fp16_.data(),
+            input_data_fp16_.size(),
+            input_shape.data(),
+            input_shape.size()
+        );
+        tensors.push_back(std::move(tensor));
+    } else {
+        // Use float32 directly for FP32 models
+        input_data_fp32_ = std::move(input_data);
+
+        auto tensor = Ort::Value::CreateTensor<float>(
+            memory_info_,
+            input_data_fp32_.data(),
+            input_data_fp32_.size(),
+            input_shape.data(),
+            input_shape.size()
+        );
+        tensors.push_back(std::move(tensor));
+    }
+
     return tensors;
 }
 

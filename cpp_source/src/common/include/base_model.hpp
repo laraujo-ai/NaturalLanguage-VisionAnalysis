@@ -55,14 +55,19 @@ std::vector<Ort::Value> IBaseModel<InputType, OutputType>::infer(std::vector<Ort
         output_names_cstr.push_back(name.c_str());
     }
 
-    return session_->Run(
-        Ort::RunOptions{nullptr},
-        input_names_cstr.data(),
-        input_tensors.data(),
-        input_tensors.size(),
-        output_names_cstr.data(),
-        output_names_cstr.size()
-    );
+    try {
+        return session_->Run(
+            Ort::RunOptions{nullptr},
+            input_names_cstr.data(),
+            input_tensors.data(),
+            input_tensors.size(),
+            output_names_cstr.data(),
+            output_names_cstr.size()
+        );
+    } catch (const Ort::Exception& e) {
+        std::cerr << "ONNX Runtime error during inference: " << e.what() << std::endl;
+        throw;
+    }
 }
 
 template<typename InputType, typename OutputType>
