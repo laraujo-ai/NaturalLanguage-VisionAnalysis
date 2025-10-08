@@ -3,6 +3,7 @@
 #include "../../../common/include/interfaces.hpp"
 #include <algorithm>
 #include <random>
+#include <iostream>
 
 namespace nl_video_analysis {
 

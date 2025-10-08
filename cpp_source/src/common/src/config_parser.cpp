@@ -4,34 +4,38 @@
 
 namespace nl_video_analysis {
 
-MediaProcessorConfig ConfigParser::parseFromFile(const std::string& filepath) {
+VideoAnalysisConfig ConfigParser::parseFromFile(const std::string& filepath) {
     std::ifstream file(filepath);
     if (!file.is_open()) {
         throw std::runtime_error("Failed to open config file: " + filepath);
     }
 
-    MediaProcessorConfig config;
+    VideoAnalysisConfig config;
     std::string line;
     bool in_cameras_array = false;
     CameraConfig current_camera;
     bool in_camera_object = false;
 
+    bool in_detector_object = false;
+
     while (std::getline(file, line)) {
         line = trim(line);
 
-        // Skip empty lines and comments
         if (line.empty() || line[0] == '#' || line.substr(0, 2) == "//") {
             continue;
         }
 
-        // Remove trailing commas
         if (!line.empty() && line.back() == ',') {
             line = line.substr(0, line.size() - 1);
         }
 
-        // Check for cameras array
         if (line.find("\"cameras\"") != std::string::npos) {
             in_cameras_array = true;
+            continue;
+        }
+
+        if (line.find("\"object_detector\"") != std::string::npos) {
+            in_detector_object = true;
             continue;
         }
 
@@ -76,7 +80,41 @@ MediaProcessorConfig ConfigParser::parseFromFile(const std::string& filepath) {
             continue;
         }
 
-        // Parse top-level config values
+        if (in_detector_object) {
+            if (line.find('}') != std::string::npos) {
+                in_detector_object = false;
+                continue;
+            }
+
+            if (line.find("\"type\"") != std::string::npos) {
+                size_t colon = line.find(':');
+                if (colon != std::string::npos) {
+                    config.object_detector.type = parseString(line.substr(colon + 1));
+                }
+            } else if (line.find("\"weights_path\"") != std::string::npos) {
+                size_t colon = line.find(':');
+                if (colon != std::string::npos) {
+                    config.object_detector.weights_path = parseString(line.substr(colon + 1));
+                }
+            } else if (line.find("\"number_of_threads\"") != std::string::npos) {
+                size_t colon = line.find(':');
+                if (colon != std::string::npos) {
+                    config.object_detector.number_of_threads = parseInt(line.substr(colon + 1));
+                }
+            } else if (line.find("\"conf_threshold\"") != std::string::npos) {
+                size_t colon = line.find(':');
+                if (colon != std::string::npos) {
+                    config.object_detector.conf_threshold = std::stof(trim(line.substr(colon + 1)));
+                }
+            } else if (line.find("\"nms_threshold\"") != std::string::npos) {
+                size_t colon = line.find(':');
+                if (colon != std::string::npos) {
+                    config.object_detector.nms_threshold = std::stof(trim(line.substr(colon + 1)));
+                }
+            }
+            continue;
+        }
+
         size_t colon = line.find(':');
         if (colon == std::string::npos) {
             continue;

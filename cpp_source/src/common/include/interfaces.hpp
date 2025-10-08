@@ -10,6 +10,7 @@
 
 namespace nl_video_analysis {
 
+
 struct ClipContainer {
     std::string clip_id;
     std::string camera_id;
@@ -47,35 +48,12 @@ class IFrameSampler {
 };
 
 }
-// struct BoundingBox {
-//     float x, y, width, height;
-//     BoundingBox(float x = 0, float y = 0, float w = 0, float h = 0) : x(x), y(y), width(w), height(h) {}
-// };
+struct Detection {
+    float x1, y1, x2, y2;
+    float score;
+    int class_id;
+};
 
-// struct TrackedObject {
-//     std::string object_id;
-//     std::string track_id;
-//     std::string clip_id;
-//     std::string camera_id;
-//     std::vector<BoundingBox> bbox_history;
-//     std::vector<float> confidence_scores;
-//     std::string class_name;
-//     std::vector<float> embedding_history;
-//     std::vector<float> best_frame_embedding;
-//     double timestamp;
-
-//     TrackedObject(const std::string& obj_id, const std::string& tr_id, const std::string& cl_id,
-//                   const std::string& cam_id, const std::string& cls_name, double ts)
-//         : object_id(obj_id), track_id(tr_id), clip_id(cl_id), camera_id(cam_id),
-//           class_name(cls_name), timestamp(ts) {}
-// };
-
-
-// class IObjectDetector {
-// public:
-//     virtual ~IObjectDetector() = default;
-//     virtual std::vector<TrackedObject> detectAndTrack(const ClipContainer& clip) = 0;
-// };
 
 // class IStorageHandler {
 // public:

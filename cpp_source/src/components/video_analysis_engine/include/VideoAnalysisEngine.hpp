@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../../../common/include/interfaces.hpp"
-#include "../../../common/include/config_parser.hpp"
+#include <iostream>
+#include <algorithm>
 #include <vector>
 #include <memory>
 #include <thread>
@@ -10,42 +10,47 @@
 #include <condition_variable>
 #include <atomic>
 
+#include "../../../common/include/interfaces.hpp"
+#include "../../../common/include/config_parser.hpp"
+#include "../../../common/include/base_model.hpp"
+#include "../../stream_handler/include/vision_stream_handlers.hpp"
+#include "../../object_detection/include/yolox_detector.hpp"
+#include "../../frame_sampler/include/frame_samplers.hpp"
+
+
 namespace nl_video_analysis {
 
-class MediaProcessor {
+class VideoAnalysisEngine {
 private:
-    MediaProcessorConfig config_;
+    VideoAnalysisConfig config_;
 
-    // Stream handlers for each camera
     std::vector<std::unique_ptr<IStreamHandler>> stream_handlers_;
     std::vector<std::string> camera_ids_;
 
-    // Frame sampler
     std::unique_ptr<IFrameSampler> frame_sampler_;
-
-    // Single queue for clips (with sampled_frames populated)
+    // clip queue info
     std::queue<ClipContainer> clip_queue_;
     mutable std::mutex clip_queue_mutex_;
     std::condition_variable clip_queue_cv_;
-
+    
     std::vector<std::thread> processing_threads_;
     std::atomic<bool> is_running_;
 
-    // Single processing loop
     void clipProcessingLoop();
 
     // Commented out for future use:
-    // std::unique_ptr<IObjectDetector> object_detector_;
+    std::unique_ptr<YOLOXDetector> object_detector_;
+    void objectProcessingLoop();
+
     // std::unique_ptr<IStorageHandler> storage_handler_;
     // std::queue<std::vector<TrackedObject>> tracked_objects_queue_;
     // mutable std::mutex tracked_objects_mutex_;
     // std::condition_variable tracked_objects_cv_;
-    // void objectProcessingLoop();
     // void storageProcessingLoop();
 
 public:
-    MediaProcessor(const MediaProcessorConfig& config = MediaProcessorConfig{});
-    ~MediaProcessor();
+    VideoAnalysisEngine(const VideoAnalysisConfig& config = VideoAnalysisConfig{});
+    ~VideoAnalysisEngine();
 
     // Add sources from config
     bool addSource(const std::string& source_url, const std::string& camera_id, const std::string& source_type);
@@ -60,8 +65,8 @@ public:
     // Get next clip with sampled frames
     bool getNextClip(ClipContainer& clip);
 
-    void setConfig(const MediaProcessorConfig& config);
-    MediaProcessorConfig getConfig() const;
+    void setConfig(const VideoAnalysisConfig& config);
+    VideoAnalysisConfig getConfig() const;
 };
 
 }

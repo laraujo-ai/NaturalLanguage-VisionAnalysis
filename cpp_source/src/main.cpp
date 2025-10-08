@@ -1,4 +1,4 @@
-#include "components/media_processing/include/MediaProcessor.hpp"
+#include "components/video_analysis_engine/include/VideoAnalysisEngine.hpp"
 #include "common/include/config_parser.hpp"
 #include <iostream>
 #include <chrono>
@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
     std::cout << "============================================" << std::endl;
     std::cout << "\nLoading configuration from: " << config_file << std::endl;
 
-    nl_video_analysis::MediaProcessorConfig config;
+    nl_video_analysis::VideoAnalysisConfig config;
     try {
         config = nl_video_analysis::ConfigParser::parseFromFile(config_file);
         std::cout << "\nConfiguration loaded successfully!" << std::endl;
@@ -48,9 +48,10 @@ int main(int argc, char* argv[])
         std::cerr << "No cameras configured in config file. Exiting." << std::endl;
         return 1;
     }
+        
 
-    std::cout << "\nInitializing MediaProcessor..." << std::endl;
-    nl_video_analysis::MediaProcessor processor(config);
+    std::cout << "\nInitializing VideoAnalysisEngine..." << std::endl;
+    nl_video_analysis::VideoAnalysisEngine processor(config);
 
     std::cout << "\nAdding camera sources..." << std::endl;
     for (const auto& camera : config.cameras) {
@@ -62,11 +63,11 @@ int main(int argc, char* argv[])
         }
     }
 
-    std::cout << "\nStarting media processor..." << std::endl;
+    std::cout << "\nStarting video analysis engine..." << std::endl;
     processor.start();
 
     if (!processor.isRunning()) {
-        std::cerr << "Failed to start media processor. Exiting." << std::endl;
+        std::cerr << "Failed to start video analysis engine. Exiting." << std::endl;
         return 1;
     }
 
@@ -106,7 +107,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    std::cout << "\n\nShutting down MediaProcessor..." << std::endl;
+    std::cout << "\n\nShutting down VideoAnalysisEngine..." << std::endl;
     processor.stop();
 
     auto total_time = std::chrono::duration_cast<std::chrono::seconds>(

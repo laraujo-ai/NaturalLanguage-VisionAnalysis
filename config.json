@@ -17,5 +17,12 @@
       "source_url": "rtsp://vtviewer:Vtech123!@192.168.1.121/cam/realmonitor?channel=1&subtype=2",
       "source_type": "rtsp"
     }
-  ]
+  ],
+  "object_detector" : {
+    "type": "yolox",
+    "weights_path" : "/home/nvidia/projects/NaturalLanguage-VisionAnalysis/yolox_m.onnx",
+    "number_of_threads" : 4,
+    "conf_threshold" : 0.3,
+    "nms_threshold" : 0.45
+  }
 }

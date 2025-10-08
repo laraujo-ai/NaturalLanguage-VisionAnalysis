@@ -19,16 +19,25 @@ struct CameraConfig {
         : camera_id(id), source_url(url), source_type(type) {}
 };
 
-struct MediaProcessorConfig {
+struct ObjectDetectorConfig {
+    std::string type;
+    std::string weights_path;
+    int number_of_threads;
+    float conf_threshold;
+    float nms_threshold;
+};
+
+struct VideoAnalysisConfig {
     int max_connections = 10;
     int clip_length = 30;
 
-    std::string sampler_type = "uniform";  
+    std::string sampler_type = "uniform";
     int sampled_frames_count = 5;
 
     int queue_max_size = 100;
 
     std::vector<CameraConfig> cameras;
+    ObjectDetectorConfig object_detector;
 
     int gst_buffer_size = 5;
     int gst_drop_frames = 5;
@@ -36,12 +45,12 @@ struct MediaProcessorConfig {
     int gst_frame_width = 640;
     int gst_frame_height = 640;
 
-    MediaProcessorConfig() = default;
+    VideoAnalysisConfig() = default;
 };
 
 class ConfigParser {
 public:
-    static MediaProcessorConfig parseFromFile(const std::string& filepath);
+    static VideoAnalysisConfig parseFromFile(const std::string& filepath);
 
 private:
     static std::string trim(const std::string& str);

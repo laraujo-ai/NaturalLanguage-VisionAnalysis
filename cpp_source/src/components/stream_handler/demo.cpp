@@ -13,6 +13,7 @@ int main() {
         std::cerr << "Failed to start RTSP stream!" << std::endl;
         return -1;
     }
+
     int clip_count = 0;
     auto start_time = std::chrono::steady_clock::now();
 

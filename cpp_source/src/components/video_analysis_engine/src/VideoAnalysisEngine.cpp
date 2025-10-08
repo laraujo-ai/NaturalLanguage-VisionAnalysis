@@ -1,22 +1,19 @@
-#include "../include/MediaProcessor.hpp"
-#include "../../stream_handler/include/vision_stream_handlers.hpp"
-#include "../../frame_sampler/include/frame_samplers.hpp"
-#include <iostream>
-#include <algorithm>
+#include "../include/VideoAnalysisEngine.hpp"
 
 namespace nl_video_analysis {
 
-MediaProcessor::MediaProcessor(const MediaProcessorConfig& config)
+VideoAnalysisEngine::VideoAnalysisEngine(const VideoAnalysisConfig& config)
     : config_(config), is_running_(false) {
 
     frame_sampler_ = std::make_unique<UniformFrameSampler>();
+    object_detector_ = std::make_unique<YOLOXDetector>(config_.object_detector.weights_path, config_.object_detector.number_of_threads);
 }
 
-MediaProcessor::~MediaProcessor() {
+VideoAnalysisEngine::~VideoAnalysisEngine() {
     stop();
 }
 
-bool MediaProcessor::addSource(const std::string& source_url, const std::string& camera_id, const std::string& source_type) {
+bool VideoAnalysisEngine::addSource(const std::string& source_url, const std::string& camera_id, const std::string& source_type) {
     if (stream_handlers_.size() >= static_cast<size_t>(config_.max_connections)) {
         std::cerr << "Maximum connections reached (" << config_.max_connections << ")" << std::endl;
         return false;
@@ -56,9 +53,9 @@ bool MediaProcessor::addSource(const std::string& source_url, const std::string&
     return false;
 }
 
-void MediaProcessor::start() {
+void VideoAnalysisEngine::start() {
     if (is_running_) {
-        std::cout << "MediaProcessor already running" << std::endl;
+        std::cout << "VideoAnalysisEngine already running" << std::endl;
         return;
     }
 
@@ -69,13 +66,14 @@ void MediaProcessor::start() {
 
     is_running_ = true;
 
-    processing_threads_.emplace_back(&MediaProcessor::clipProcessingLoop, this);
+    processing_threads_.emplace_back(&VideoAnalysisEngine::clipProcessingLoop, this);
+    processing_threads_.emplace_back(&VideoAnalysisEngine::objectProcessingLoop, this);
 
-    std::cout << "MediaProcessor started with " << stream_handlers_.size()
+    std::cout << "VideoAnalysisEngine started with " << stream_handlers_.size()
               << " streams and " << processing_threads_.size() << " processing thread(s)" << std::endl;
 }
 
-void MediaProcessor::stop() {
+void VideoAnalysisEngine::stop() {
     if (!is_running_) {
         return;
     }
@@ -97,14 +95,14 @@ void MediaProcessor::stop() {
     stream_handlers_.clear();
     camera_ids_.clear();
 
-    std::cout << "MediaProcessor stopped" << std::endl;
+    std::cout << "VideoAnalysisEngine stopped" << std::endl;
 }
 
-bool MediaProcessor::isRunning() const {
+bool VideoAnalysisEngine::isRunning() const {
     return is_running_;
 }
 
-void MediaProcessor::clipProcessingLoop() {
+void VideoAnalysisEngine::clipProcessingLoop() {
     while (is_running_) {
         for (size_t i = 0; i < stream_handlers_.size(); ++i) {
             auto& handler = stream_handlers_[i];
@@ -114,7 +112,6 @@ void MediaProcessor::clipProcessingLoop() {
                     // Set camera_id from our stored list
                     clip.value().camera_id = camera_ids_[i];
 
-                    // Sample frames directly on the clip
                     frame_sampler_->sampleFrames(clip.value(), config_.sampled_frames_count);
 
                     std::unique_lock<std::mutex> lock(clip_queue_mutex_);
@@ -136,12 +133,31 @@ void MediaProcessor::clipProcessingLoop() {
     }
 }
 
-size_t MediaProcessor::getClipQueueSize() const {
+void VideoAnalysisEngine::objectProcessingLoop()
+{
+    while(is_running_)
+    {
+        ClipContainer clip;
+        this->getNextClip(clip);
+        for(auto frame : clip.sampled_frames)
+        {
+            std::vector<Detection> detectionResult;
+            detectionResult = object_detector_->detect(frame, this->config_.object_detector.conf_threshold, this->config_.object_detector.nms_threshold);
+            for (int i(0); i < detectionResult.size(); i++)
+            {
+                std::cout << "Detection  :" << i << std::endl;
+                std::cout << "confidence :" << detectionResult[i].score << std::endl;
+            }
+        }    
+    }
+}
+
+size_t VideoAnalysisEngine::getClipQueueSize() const {
     std::lock_guard<std::mutex> lock(clip_queue_mutex_);
     return clip_queue_.size();
 }
 
-bool MediaProcessor::getNextClip(ClipContainer& clip) {
+bool VideoAnalysisEngine::getNextClip(ClipContainer& clip) {
     std::lock_guard<std::mutex> lock(clip_queue_mutex_);
     if (clip_queue_.empty()) {
         return false;
@@ -151,11 +167,11 @@ bool MediaProcessor::getNextClip(ClipContainer& clip) {
     return true;
 }
 
-void MediaProcessor::setConfig(const MediaProcessorConfig& config) {
+void VideoAnalysisEngine::setConfig(const VideoAnalysisConfig& config) {
     config_ = config;
 }
 
-MediaProcessorConfig MediaProcessor::getConfig() const {
+VideoAnalysisConfig VideoAnalysisEngine::getConfig() const {
     return config_;
 }
 

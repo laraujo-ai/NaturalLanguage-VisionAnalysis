@@ -1,5 +1,4 @@
 #include "../include/frame_samplers.hpp"
-#include <iostream>
 
 namespace nl_video_analysis {
 
@@ -15,10 +14,8 @@ void UniformFrameSampler::sampleFrames(ClipContainer& clip, int num_frames) {
     num_frames = std::min(num_frames, total_frames);
 
     if (num_frames == 1) {
-        // Sample the middle frame
         clip.sampled_frames.push_back(clip.frames[total_frames / 2].clone());
     } else {
-        // Uniform sampling across the clip
         double step = static_cast<double>(total_frames - 1) / (num_frames - 1);
         for (int i = 0; i < num_frames; ++i) {
             int index = static_cast<int>(i * step);
@@ -26,5 +23,4 @@ void UniformFrameSampler::sampleFrames(ClipContainer& clip, int num_frames) {
         }
     }
 }
-
 }
