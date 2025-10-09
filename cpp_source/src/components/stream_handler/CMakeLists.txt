@@ -18,3 +18,7 @@ target_compile_options(stream_handler PRIVATE
     ${GST_APP_CFLAGS_OTHER}
 )
 
+option(BUILD_STREAM_HANDLER_TESTS "Build stream handler tests" ON)
+if(BUILD_STREAM_HANDLER_TESTS)
+    add_subdirectory(tests)
+endif()
