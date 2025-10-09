@@ -32,5 +32,10 @@
     "max_age": 1,
     "min_hits": 3,
     "iou_threshold": 0.3
+  },
+  "image_encoder": {
+    "model_path": "/home/nvidia/projects/NaturalLanguage-VisionAnalysis/weights/clip_image_fp16.onnx",
+    "is_fp16": true,
+    "number_of_threads": 4
   }
 }

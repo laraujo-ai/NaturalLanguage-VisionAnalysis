@@ -49,10 +49,15 @@ struct ObjectDetectorConfig {
 };
 
 struct TrackerConfig {
-
     int max_age;
     int min_hits;
     double iou_threshold;    
+};
+
+struct ClipImageEncoderConfig {
+    std::string model_path;
+    int num_threads;
+    bool is_fp16;    
 };
 
 struct VideoAnalysisConfig {
@@ -67,6 +72,7 @@ struct VideoAnalysisConfig {
     std::vector<CameraConfig> cameras;
     ObjectDetectorConfig object_detector;
     TrackerConfig tracker;
+    ClipImageEncoderConfig image_encoder;
 
     
     int gst_buffer_size = 5;

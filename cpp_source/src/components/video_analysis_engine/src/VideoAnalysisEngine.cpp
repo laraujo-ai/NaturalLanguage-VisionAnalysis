@@ -1,6 +1,4 @@
 #include "../include/VideoAnalysisEngine.hpp"
-#include "../../../common/include/logger.hpp"
-#include "../../../common/include/benchmark.hpp"
 
 namespace nl_video_analysis {
 
@@ -10,6 +8,7 @@ VideoAnalysisEngine::VideoAnalysisEngine(const VideoAnalysisConfig& config)
     frame_sampler_ = std::make_unique<UniformFrameSampler>();
     object_detector_ = std::make_unique<YOLOXDetector>(config_.object_detector.weights_path, config_.object_detector.number_of_threads, config_.object_detector.is_fp16, config_.object_detector.classes);
     tracker_ = std::make_unique<nl_vision_analysis::SortTracker>(config_.tracker.max_age, config_.tracker.min_hits, config_.tracker.iou_threshold);
+    clip_image_encoder_ = std::make_unique<nl_vision_analysis::CLIPImageEncoder>(config_.image_encoder.model_path, config_.image_encoder.num_threads, config_.image_encoder.is_fp16); 
 }
 
 VideoAnalysisEngine::~VideoAnalysisEngine() {

@@ -16,9 +16,11 @@
 #include "../../../common/include/utils.hpp"
 #include "../../stream_handler/include/vision_stream_handlers.hpp"
 #include "../../object_detection/include/yolox_detector.hpp"
+#include "../../vlm_engine/include/clip_image_encoder.hpp"
 #include "../../tracker/include/sort_tracker.hpp"
 #include "../../frame_sampler/include/frame_samplers.hpp"
-
+#include "../../../common/include/logger.hpp"
+#include "../../../common/include/benchmark.hpp"
 
 
 namespace nl_video_analysis {
@@ -42,9 +44,9 @@ private:
     void clipProcessingLoop();
     void benchmarkReportingLoop();
 
-    // Commented out for future use:
     std::unique_ptr<YOLOXDetector> object_detector_;
     std::unique_ptr<nl_vision_analysis::SortTracker> tracker_;
+    std::unique_ptr<nl_vision_analysis::CLIPImageEncoder> clip_image_encoder_;
     void objectProcessingLoop();
 
     // Benchmark tracking

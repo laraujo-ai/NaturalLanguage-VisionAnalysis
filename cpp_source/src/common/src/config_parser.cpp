@@ -17,6 +17,7 @@ VideoAnalysisConfig ConfigParser::parseFromFile(const std::string& filepath) {
     bool in_detector_object = false;
     bool in_tracker_object = false;
     bool in_classes_array = false;
+    bool in_image_encoder_object = false;
 
     while (std::getline(file, line)) {
         line = trim(line);
@@ -40,6 +41,10 @@ VideoAnalysisConfig ConfigParser::parseFromFile(const std::string& filepath) {
         }
         if (line.find("\"tracker\"") != std::string::npos) {
             in_tracker_object = true;
+            continue;
+        }
+        if (line.find("\"image_encoder\"") != std::string::npos) {
+            in_image_encoder_object = true;
             continue;
         }
 
@@ -105,7 +110,6 @@ VideoAnalysisConfig ConfigParser::parseFromFile(const std::string& filepath) {
                     size_t end_bracket = array_part.find(']');
 
                     if (start_bracket != std::string::npos && end_bracket != std::string::npos) {
-                        // Single-line array
                         std::string array_content = array_part.substr(start_bracket + 1, end_bracket - start_bracket - 1);
                         std::stringstream ss(array_content);
                         std::string token;
@@ -116,12 +120,10 @@ VideoAnalysisConfig ConfigParser::parseFromFile(const std::string& filepath) {
                                 try {
                                     config.object_detector.classes.push_back(std::stoi(token));
                                 } catch (...) {
-                                    // Skip invalid entries
                                 }
                             }
                         }
                     } else {
-                        // Multi-line array
                         in_classes_array = true;
                     }
                 }
@@ -134,7 +136,6 @@ VideoAnalysisConfig ConfigParser::parseFromFile(const std::string& filepath) {
                     continue;
                 }
 
-                // Parse individual integers from the array
                 std::string numbers = trim(line);
                 std::stringstream ss(numbers);
                 std::string token;
@@ -145,7 +146,6 @@ VideoAnalysisConfig ConfigParser::parseFromFile(const std::string& filepath) {
                         try {
                             config.object_detector.classes.push_back(parseInt(token));
                         } catch (...) {
-                            // Skip invalid entries
                         }
                     }
                 }
@@ -210,6 +210,25 @@ VideoAnalysisConfig ConfigParser::parseFromFile(const std::string& filepath) {
                 }
             } 
             continue;
+        }
+        if(in_image_encoder_object)
+        {
+            if (line.find("\"model_path\"") != std::string::npos) {
+                size_t colon = line.find(':');
+                if (colon != std::string::npos) {
+                    config.image_encoder.model_path = parseString(line.substr(colon + 1));
+                }
+            } else if (line.find("\"number_of_threads\"") != std::string::npos) {
+                size_t colon = line.find(':');
+                if (colon != std::string::npos) {
+                    config.image_encoder.num_threads = parseInt(line.substr(colon + 1));
+                }
+            } else if (line.find("\"is_fp16\"") != std::string::npos) {
+                size_t colon = line.find(':');
+                if (colon != std::string::npos) {
+                    config.image_encoder.is_fp16 = parseBool(line.substr(colon + 1));
+                }
+            }
         }
         size_t colon = line.find(':');
         if (colon == std::string::npos) {

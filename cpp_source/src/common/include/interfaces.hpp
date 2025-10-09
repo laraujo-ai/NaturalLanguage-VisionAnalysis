@@ -17,7 +17,6 @@ enum class StreamCodec {
     H265
 };
 
-
 struct ClipContainer {
     std::string clip_id;
     std::string camera_id;
