@@ -18,12 +18,3 @@ target_compile_options(stream_handler PRIVATE
     ${GST_APP_CFLAGS_OTHER}
 )
 
-option(BUILD_STREAM_HANDLER_DEMO "Build stream handler demo" OFF)
-if(BUILD_STREAM_HANDLER_DEMO)
-    add_executable(stream_handler_demo demo.cpp)
-    target_link_libraries(stream_handler_demo PRIVATE stream_handler)
-    target_include_directories(stream_handler_demo PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../common/include
-    )
-endif()

@@ -11,13 +11,7 @@ target_include_directories(frame_sampler PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common/include
 )
 
-# Optional demo build
-option(BUILD_FRAME_SAMPLER_DEMO "Build frame sampler demo" OFF)
-if(BUILD_FRAME_SAMPLER_DEMO)
-    add_executable(frame_sampler_demo demo.cpp)
-    target_link_libraries(frame_sampler_demo PRIVATE frame_sampler)
-    target_include_directories(frame_sampler_demo PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../common/include
-    )
+option(BUILD_FRAME_SAMPLER_TESTS "Build frame sampler tests" ON)
+if(BUILD_FRAME_SAMPLER_TESTS)
+    add_subdirectory(tests)
 endif()
