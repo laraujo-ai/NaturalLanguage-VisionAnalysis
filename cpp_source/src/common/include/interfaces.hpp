@@ -12,6 +12,12 @@
 namespace nl_video_analysis {
 
 
+enum class StreamCodec {
+    H264,
+    H265
+};
+
+
 struct ClipContainer {
     std::string clip_id;
     std::string camera_id;

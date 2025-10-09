@@ -12,10 +12,6 @@
 
 namespace nl_video_analysis {
 
-enum class StreamCodec {
-    H264,
-    H265
-};
 
 class GStreamerRTSPHandler : public IStreamHandler {
 private:

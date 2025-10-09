@@ -1,4 +1,5 @@
 #include "../include/vision_stream_handlers.hpp"
+#include "../../../common/include/logger.hpp"
 #include <iostream>
 #include <chrono>
 #include <sstream>
@@ -25,7 +26,6 @@ GStreamerRTSPHandler::~GStreamerRTSPHandler() {
 
 bool GStreamerRTSPHandler::startStream(const std::string& rtsp_url) {
     if (is_active_) {
-        std::cerr << "Stream already active" << std::endl;
         return false;
     }
 
@@ -36,7 +36,7 @@ bool GStreamerRTSPHandler::startStream(const std::string& rtsp_url) {
     }
 
     if (!initializeGStreamer()) {
-        std::cerr << "Failed to initialize GStreamer pipeline" << std::endl;
+        LOG_ERROR("GStreamer initialization failed");
         return false;
     }
 
@@ -132,15 +132,14 @@ bool GStreamerRTSPHandler::initializeGStreamer() {
     std::string pipeline_str = buildNvidiaHardwarePipeline();
     pipeline_ = gst_parse_launch(pipeline_str.c_str(), &error);
     if (!pipeline_ || error) {
-        std::cerr << "GStreamer pipeline creation failed: "
-                  << (error ? error->message : "Unknown error") << std::endl;
+        LOG_ERROR("GStreamer pipeline failed: {}", error ? error->message : "Unknown");
         if (error) g_error_free(error);
         return false;
     }
 
     appsink_ = gst_bin_get_by_name(GST_BIN(pipeline_), "sink");
     if (!appsink_) {
-        std::cerr << "Failed to get appsink element" << std::endl;
+        LOG_ERROR("Appsink element not found");
         return false;
     }
 
@@ -295,10 +294,7 @@ void GStreamerRTSPHandler::handlePipelineError(GstMessage* message) {
     gchar* debug_info = nullptr;
 
     gst_message_parse_error(message, &error, &debug_info);
-    std::cerr << "GStreamer Error: " << (error ? error->message : "Unknown error") << std::endl;
-    if (debug_info) {
-        std::cerr << "Debug info: " << debug_info << std::endl;
-    }
+    LOG_ERROR("GStreamer error: {}", error ? error->message : "Unknown");
 
     if (error) g_error_free(error);
     if (debug_info) g_free(debug_info);
@@ -311,10 +307,6 @@ void GStreamerRTSPHandler::handlePipelineWarning(GstMessage* message) {
     gchar* debug_info = nullptr;
 
     gst_message_parse_warning(message, &warning, &debug_info);
-    std::cerr << "GStreamer Warning: " << (warning ? warning->message : "Unknown warning") << std::endl;
-    if (debug_info) {
-        std::cerr << "Debug info: " << debug_info << std::endl;
-    }
 
     if (warning) g_error_free(warning);
     if (debug_info) g_free(debug_info);
@@ -325,10 +317,6 @@ void GStreamerRTSPHandler::handlePipelineInfo(GstMessage* message) {
     gchar* debug_info = nullptr;
 
     gst_message_parse_info(message, &info, &debug_info);
-    std::cout << "GStreamer Info: " << (info ? info->message : "Unknown info") << std::endl;
-    if (debug_info) {
-        std::cout << "Debug info: " << debug_info << std::endl;
-    }
 
     if (info) g_error_free(info);
     if (debug_info) g_free(debug_info);
@@ -343,7 +331,6 @@ OpenCVFileHandler::~OpenCVFileHandler() {
 
 bool OpenCVFileHandler::startStream(const std::string& file_path) {
     if (is_active_) {
-        std::cerr << "File stream already active" << std::endl;
         return false;
     }
 
@@ -356,19 +343,16 @@ bool OpenCVFileHandler::startStream(const std::string& file_path) {
 
     capture_.open(file_path_);
     if (!capture_.isOpened()) {
-        std::cerr << "Failed to open video file: " << file_path_ << std::endl;
+        LOG_ERROR("Cannot open video file: {}", file_path_);
         return false;
     }
 
     fps_ = capture_.get(cv::CAP_PROP_FPS);
-    this->frames_per_clip_ = this->clip_length_ * fps_;
-    
+    frames_per_clip_ = clip_length_ * fps_;
     total_frames_ = static_cast<int>(capture_.get(cv::CAP_PROP_FRAME_COUNT));
     current_frame_index_ = 0;
     is_active_ = true;
 
-    std::cout << "Opened video file: " << file_path_
-              << " (FPS: " << fps_ << ", Frames: " << total_frames_ << ")" << std::endl;
     return true;
 }
 
@@ -379,8 +363,6 @@ void OpenCVFileHandler::stopStream() {
     if (capture_.isOpened()) {
         capture_.release();
     }
-
-    std::cout << "Closed video file stream" << std::endl;
 }
 
 std::optional<ClipContainer> OpenCVFileHandler::getNextClip() {

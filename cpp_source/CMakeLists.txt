@@ -5,6 +5,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 
+# Add spdlog include directory (parent of spdlog folder)
+include_directories(${CMAKE_SOURCE_DIR}/lib)
+
 find_library(ONNXRUNTIME_LIB onnxruntime
     HINTS
         ${CMAKE_SOURCE_DIR}/../onnxruntime/lib

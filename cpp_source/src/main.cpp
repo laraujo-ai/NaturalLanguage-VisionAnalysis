@@ -1,5 +1,6 @@
 #include "components/video_analysis_engine/include/VideoAnalysisEngine.hpp"
 #include "common/include/config_parser.hpp"
+#include "common/include/logger.hpp"
 #include <iostream>
 #include <chrono>
 #include <thread>
@@ -9,7 +10,7 @@
 std::atomic<bool> running(true);
 
 void signalHandler(int signum) {
-    std::cout << "\nInterrupt signal (" << signum << ") received. Shutting down..." << std::endl;
+    LOG_INFO("Interrupt signal received, shutting down...");
     running = false;
 }
 
@@ -25,103 +26,55 @@ int main(int argc, char* argv[])
     }
 
     std::string config_file = argv[1];
-    std::cout << "============================================" << std::endl;
-    std::cout << "  Natural Language Vision Analysis System  " << std::endl;
-    std::cout << "  Stream Processing + Frame Sampling Demo  " << std::endl;
-    std::cout << "============================================" << std::endl;
-    std::cout << "\nLoading configuration from: " << config_file << std::endl;
+
+    LOG_INFO("=== Natural Language Vision Analysis System ===");
+    LOG_INFO("Loading configuration from: {}", config_file);
 
     nl_video_analysis::VideoAnalysisConfig config;
     try {
         config = nl_video_analysis::ConfigParser::parseFromFile(config_file);
-        std::cout << "\nConfiguration loaded successfully!" << std::endl;
-        std::cout << "  - Max connections: " << config.max_connections << std::endl;
-        std::cout << "  - Sampled frames: " << config.sampled_frames_count << std::endl;
-        std::cout << "  - Sampler type: " << config.sampler_type << std::endl;
-        std::cout << "  - Cameras configured: " << config.cameras.size() << std::endl;
+        LOG_INFO("Configuration loaded: {} cameras, {} sampled frames per clip",
+                 config.cameras.size(), config.sampled_frames_count);
     } catch (const std::exception& e) {
-        std::cerr << "Error loading config: " << e.what() << std::endl;
+        LOG_ERROR("Failed to load config: {}", e.what());
         return 1;
     }
 
     if (config.cameras.empty()) {
-        std::cerr << "No cameras configured in config file. Exiting." << std::endl;
+        LOG_ERROR("No cameras configured");
         return 1;
     }
-        
 
-    std::cout << "\nInitializing VideoAnalysisEngine..." << std::endl;
     nl_video_analysis::VideoAnalysisEngine processor(config);
 
-    std::cout << "\nAdding camera sources..." << std::endl;
     for (const auto& camera : config.cameras) {
-        std::cout << "  - " << camera.camera_id << " (" << camera.source_type << "): "
-                  << camera.source_url << std::endl;
-
-        if (!processor.addSource(camera.source_url, camera.camera_id, camera.source_type)) {
-            std::cerr << "    WARNING: Failed to add source: " << camera.camera_id << std::endl;
+        if (!processor.addSource(camera.source_url, camera.camera_id, camera.source_type, camera.stream_codec)) {
+            LOG_WARN("Failed to add camera: {}", camera.camera_id);
         }
     }
 
-    std::cout << "\nStarting video analysis engine..." << std::endl;
     processor.start();
 
     if (!processor.isRunning()) {
-        std::cerr << "Failed to start video analysis engine. Exiting." << std::endl;
+        LOG_ERROR("Failed to start pipeline");
         return 1;
     }
 
-    std::cout << "\n============================================" << std::endl;
-    std::cout << "  Processing started! Press Ctrl+C to stop  " << std::endl;
-    std::cout << "============================================\n" << std::endl;
+    LOG_INFO("Processing started. Press Ctrl+C to stop");
 
-    int clip_count = 0;
     auto start_time = std::chrono::steady_clock::now();
 
     while (running && processor.isRunning()) {
-        nl_video_analysis::ClipContainer clip;
-
-        if (processor.getNextClip(clip)) {
-            clip_count++;
-            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
-                std::chrono::steady_clock::now() - start_time).count();
-
-            std::cout << "\n[" << elapsed << "s] Received clip #" << clip_count << std::endl;
-            std::cout << "  Camera ID: " << clip.camera_id << std::endl;
-            std::cout << "  Clip ID: " << clip.clip_id << std::endl;
-            std::cout << "  Total frames: " << clip.frames.size() << std::endl;
-            std::cout << "  Sampled frames: " << clip.sampled_frames.size() << std::endl;
-            std::cout << "  Timestamp: " << clip.start_timestamp_ms << " - "
-                      << clip.end_timestamp_ms << " ms" << std::endl;
-
-            if (!clip.sampled_frames.empty()) {
-                const auto& first_frame = clip.sampled_frames[0];
-                std::cout << "  Frame size: " << first_frame.cols << "x" << first_frame.rows << std::endl;
-            }
-
-            std::cout << "  Queue size: " << processor.getClipQueueSize() << std::endl;
-
-
-        } else {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
-    std::cout << "\n\nShutting down VideoAnalysisEngine..." << std::endl;
     processor.stop();
 
     auto total_time = std::chrono::duration_cast<std::chrono::seconds>(
         std::chrono::steady_clock::now() - start_time).count();
 
-    std::cout << "\n============================================" << std::endl;
-    std::cout << "  Processing Summary" << std::endl;
-    std::cout << "============================================" << std::endl;
-    std::cout << "  Total runtime: " << total_time << " seconds" << std::endl;
-    std::cout << "  Clips processed: " << clip_count << std::endl;
-    if (total_time > 0) {
-        std::cout << "  Average rate: " << (clip_count / total_time) << " clips/sec" << std::endl;
-    }
-    std::cout << "============================================\n" << std::endl;
+    LOG_INFO("=== Processing Summary ===");
+    LOG_INFO("Total runtime: {} seconds", total_time);
 
     return 0;
 }

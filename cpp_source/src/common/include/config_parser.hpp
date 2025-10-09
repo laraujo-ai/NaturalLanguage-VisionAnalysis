@@ -6,6 +6,11 @@
 #include <sstream>
 #include <stdexcept>
 #include <map>
+#include <iostream>
+#include <algorithm>
+
+#include "interfaces.hpp"
+
 
 namespace nl_video_analysis {
 
@@ -13,10 +18,24 @@ struct CameraConfig {
     std::string camera_id;
     std::string source_url;
     std::string source_type;  // "rtsp" or "file" so far
+    StreamCodec stream_codec;
 
     CameraConfig() = default;
     CameraConfig(const std::string& id, const std::string& url, const std::string& type)
-        : camera_id(id), source_url(url), source_type(type) {}
+        : camera_id(id), source_url(url), source_type(type), stream_codec(StreamCodec::H264) {}
+
+    void parseCodec(const std::string& codec_str)
+    {
+        if(codec_str == "h264")
+        {
+            this->stream_codec = StreamCodec::H264;
+        } else if(codec_str == "h265") {
+            this->stream_codec = StreamCodec::H265;
+        } else {
+            // Default to H264 for unknown codecs
+            this->stream_codec = StreamCodec::H264;
+        }
+    }
 };
 
 struct ObjectDetectorConfig {
@@ -26,6 +45,7 @@ struct ObjectDetectorConfig {
     float conf_threshold;
     float nms_threshold;
     bool is_fp16;
+    std::vector<int> classes;
 };
 
 struct TrackerConfig {

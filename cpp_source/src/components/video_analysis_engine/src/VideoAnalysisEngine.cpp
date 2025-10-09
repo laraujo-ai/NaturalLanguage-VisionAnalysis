@@ -1,4 +1,5 @@
 #include "../include/VideoAnalysisEngine.hpp"
+#include "../../../common/include/logger.hpp"
 
 namespace nl_video_analysis {
 
@@ -6,7 +7,7 @@ VideoAnalysisEngine::VideoAnalysisEngine(const VideoAnalysisConfig& config)
     : config_(config), is_running_(false) {
 
     frame_sampler_ = std::make_unique<UniformFrameSampler>();
-    object_detector_ = std::make_unique<YOLOXDetector>(config_.object_detector.weights_path, config_.object_detector.number_of_threads, config_.object_detector.is_fp16);
+    object_detector_ = std::make_unique<YOLOXDetector>(config_.object_detector.weights_path, config_.object_detector.number_of_threads, config_.object_detector.is_fp16, config_.object_detector.classes);
     tracker_ = std::make_unique<nl_vision_analysis::SortTracker>(config_.tracker.max_age, config_.tracker.min_hits, config_.tracker.iou_threshold);
 }
 
@@ -14,28 +15,30 @@ VideoAnalysisEngine::~VideoAnalysisEngine() {
     stop();
 }
 
-bool VideoAnalysisEngine::addSource(const std::string& source_url, const std::string& camera_id, const std::string& source_type) {
+bool VideoAnalysisEngine::addSource(const std::string& source_url,
+                                    const std::string& camera_id,
+                                    const std::string& source_type,
+                                    const StreamCodec& stream_codec) {
     if (stream_handlers_.size() >= static_cast<size_t>(config_.max_connections)) {
-        std::cerr << "Maximum connections reached (" << config_.max_connections << ")" << std::endl;
+        LOG_ERROR("Maximum connections reached ({})", config_.max_connections);
         return false;
     }
 
     std::unique_ptr<IStreamHandler> handler;
 
-    // Create stream handler directly based on type
     if (source_type == "rtsp") {
-        auto rtsp_handler = std::make_unique<GStreamerRTSPHandler>(
+        handler = std::make_unique<GStreamerRTSPHandler>(
             config_.clip_length,
             config_.queue_max_size,
             config_.gst_target_fps,
             config_.gst_frame_width,
-            config_.gst_frame_height
+            config_.gst_frame_height,
+            stream_codec
         );
-        handler = std::move(rtsp_handler);
     } else if (source_type == "file") {
         handler = std::make_unique<OpenCVFileHandler>(config_.clip_length);
     } else {
-        std::cerr << "Unknown source type: " << source_type << std::endl;
+        LOG_ERROR("Unknown source type: {}", source_type);
         return false;
     }
 
@@ -45,33 +48,29 @@ bool VideoAnalysisEngine::addSource(const std::string& source_url, const std::st
     if (handler->startStream(source_url)) {
         stream_handlers_.push_back(std::move(handler));
         camera_ids_.push_back(final_camera_id);
-        std::cout << "Added source: " << source_url << " as camera: " << final_camera_id
-                  << " (type: " << source_type << ")" << std::endl;
+        LOG_INFO("Camera '{}' added (type: {})", final_camera_id, source_type);
         return true;
     }
 
-    std::cerr << "Failed to start stream: " << source_url << std::endl;
+    LOG_ERROR("Failed to start stream: {}", source_url);
     return false;
 }
 
 void VideoAnalysisEngine::start() {
     if (is_running_) {
-        std::cout << "VideoAnalysisEngine already running" << std::endl;
         return;
     }
 
     if (stream_handlers_.empty()) {
-        std::cerr << "No stream handlers added. Cannot start." << std::endl;
+        LOG_ERROR("No cameras configured");
         return;
     }
 
     is_running_ = true;
-
     processing_threads_.emplace_back(&VideoAnalysisEngine::clipProcessingLoop, this);
     processing_threads_.emplace_back(&VideoAnalysisEngine::objectProcessingLoop, this);
 
-    std::cout << "VideoAnalysisEngine started with " << stream_handlers_.size()
-              << " streams and " << processing_threads_.size() << " processing thread(s)" << std::endl;
+    LOG_INFO("Pipeline started ({} camera(s))", stream_handlers_.size());
 }
 
 void VideoAnalysisEngine::stop() {
@@ -96,7 +95,7 @@ void VideoAnalysisEngine::stop() {
     stream_handlers_.clear();
     camera_ids_.clear();
 
-    std::cout << "VideoAnalysisEngine stopped" << std::endl;
+    LOG_INFO("Pipeline stopped");
 }
 
 bool VideoAnalysisEngine::isRunning() const {
@@ -110,22 +109,15 @@ void VideoAnalysisEngine::clipProcessingLoop() {
             if (handler->isActive()) {
                 auto clip = handler->getNextClip();
                 if (clip.has_value()) {
-                    // Set camera_id from our stored list. The id here will probrably be a unique name for the camera so a string.
                     clip.value().camera_id = camera_ids_[i];
-
                     frame_sampler_->sampleFrames(clip.value(), config_.sampled_frames_count);
 
                     std::unique_lock<std::mutex> lock(clip_queue_mutex_);
                     if (clip_queue_.size() < static_cast<size_t>(config_.queue_max_size)) {
-                        std::cout << "Clip processed from camera: " << camera_ids_[i]
-                                  << " (frames: " << clip.value().frames.size()
-                                  << ", sampled: " << clip.value().sampled_frames.size()
-                                  << ", queue size: " << clip_queue_.size() + 1 << ")" << std::endl;
-
                         clip_queue_.push(std::move(clip.value()));
                         clip_queue_cv_.notify_one();
                     } else {
-                        std::cerr << "Clip queue full, dropping clip from " << camera_ids_[i] << std::endl;
+                        LOG_WARN("Queue full, dropping clip from camera '{}'", camera_ids_[i]);
                     }
                 }
             }
@@ -134,21 +126,37 @@ void VideoAnalysisEngine::clipProcessingLoop() {
     }
 }
 
-void VideoAnalysisEngine::objectProcessingLoop()
-{
-    while(is_running_)
-    {
+void VideoAnalysisEngine::objectProcessingLoop() {
+    while (is_running_) {
         ClipContainer clip;
-        this->getNextClip(clip);
-        for(auto frame : clip.sampled_frames)
-        {
-            std::vector<Detection> detectionResult = object_detector_->detect(frame, this->config_.object_detector.conf_threshold, this->config_.object_detector.nms_threshold);
-            std::vector<nlohmann::json> trackedObjects = tracker_->track(detectionResult);
+        if (!getNextClip(clip)) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            continue;
+        }
 
-            for (int i(0); i < detectionResult.size(); i++)
-            {
-                std::cout << "Detection  :" << i << std::endl;
-                std::cout << "confidence :" << detectionResult[i].score << std::endl;
+        for (const auto& frame : clip.sampled_frames) {
+            std::vector<Detection> detections = object_detector_->detect(
+                frame,
+                config_.object_detector.conf_threshold,
+                config_.object_detector.nms_threshold
+            );
+            std::vector<nlohmann::json> tracked_objects = tracker_->track(detections);
+
+            std::string base_path = "/home/nvidia/projects/NaturalLanguage-VisionAnalysis/test_cropps/";
+            for (const auto& tracklet : tracked_objects) {
+                auto bbox = tracklet["BoundingBox"];
+                int64_t tracker_id = tracklet["TrackerId"].get<int64_t>();
+
+                std::optional<cv::Mat> cropped = crop_object(
+                    frame,
+                    bbox[0], bbox[1], bbox[2], bbox[3],
+                    10
+                );
+
+                if (cropped) {
+                    std::string file_path = base_path + std::to_string(tracker_id) + ".jpg";
+                    cv::imwrite(file_path, cropped.value());
+                }
             }
         }
     }

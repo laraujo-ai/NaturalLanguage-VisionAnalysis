@@ -7,16 +7,16 @@
 
 namespace nl_video_analysis {
 inline std::optional<cv::Mat> crop_object(const cv::Mat& frame,
-                                          float x1, float y1,
-                                          float x2, float y2,
+                                          int x1, int y1,
+                                          int x2, int y2,
                                           int padding = 10) {
     int h = frame.rows;
     int w = frame.cols;
 
-    int x1_int = static_cast<int>(std::max(0.0f, x1));
-    int y1_int = static_cast<int>(std::max(0.0f, y1));
-    int x2_int = static_cast<int>(std::min(static_cast<float>(w), x2));
-    int y2_int = static_cast<int>(std::min(static_cast<float>(h), y2));
+    int x1_int = std::max(0, x1);
+    int y1_int = std::max(0, y1);
+    int x2_int = std::min(w, x2);
+    int y2_int = std::min(h, y2);
 
     if (x2_int <= x1_int || y2_int <= y1_int) {
         return std::nullopt;

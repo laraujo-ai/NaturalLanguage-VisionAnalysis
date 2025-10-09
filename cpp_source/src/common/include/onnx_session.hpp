@@ -2,6 +2,7 @@
 #define ONNX_SESSION_HPP
 
 #include <onnxruntime/core/session/onnxruntime_cxx_api.h>
+#include "logger.hpp"
 #include <string>
 #include <memory>
 #include <iostream>
@@ -61,28 +62,28 @@ inline std::unique_ptr<Ort::Session> ONNXSessionBuilder::build() {
     try {
         OrtTensorRTProviderOptions trtOptions = getTensorRTOptions();
         sessionOptions.AppendExecutionProvider_TensorRT(trtOptions);
-        std::cout << "TensorRT execution provider enabled" << std::endl;
+        LOG_INFO("TensorRT execution provider enabled");
     } catch (const Ort::Exception& e) {
-        std::cout << "TensorRT not available, skipping: " << e.what() << std::endl;
+        LOG_DEBUG("TensorRT not available");
     }
 
     try {
         OrtCUDAProviderOptions cudaOptions = getCUDAOptions();
         sessionOptions.AppendExecutionProvider_CUDA(cudaOptions);
-        std::cout << "CUDA execution provider enabled" << std::endl;
+        LOG_INFO("CUDA execution provider enabled");
     } catch (const Ort::Exception& e) {
-        std::cout << "CUDA not available, skipping: " << e.what() << std::endl;
+        LOG_DEBUG("CUDA not available");
     }
 
-    std::cout << "Loading ONNX model from: " << model_path_ << std::endl;
+    LOG_INFO("Loading ONNX model: {}", model_path_);
 
     try {
         return std::make_unique<Ort::Session>(getEnv(), model_path_.c_str(), sessionOptions);
     } catch (const Ort::Exception& e) {
-        std::cerr << "Failed to create ONNX session: " << e.what() << std::endl;
+        LOG_ERROR("Failed to create ONNX session: {}", e.what());
         throw;
     } catch (const std::exception& e) {
-        std::cerr << "Failed to create ONNX session (std::exception): " << e.what() << std::endl;
+        LOG_ERROR("Failed to create ONNX session: {}", e.what());
         throw;
     }
 }

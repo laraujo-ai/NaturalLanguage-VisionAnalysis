@@ -12,10 +12,11 @@
   "gst_frame_height": 640,
 
   "cameras": [
-    {
-      "camera_id": "office_entrance",
-      "source_url": "rtsp://vtviewer:Vtech123!@192.168.1.121/cam/realmonitor?channel=1&subtype=2",
-      "source_type": "rtsp"
+      {
+      "camera_id": "Luis Video",
+      "source_url": "/home/nvidia/projects/NaturalLanguage-VisionAnalysis/fake_streaming.mp4",
+      "source_type": "file",
+      "stream_codec" : "h264"
     }
   ],
   "object_detector" : {
@@ -24,7 +25,8 @@
     "number_of_threads" : 4,
     "conf_threshold" : 0.3,
     "nms_threshold" : 0.45,
-    "is_fp16" : false
+    "is_fp16" : false,
+    "classes" : [0]
   },
   "tracker": {
     "max_age": 1,

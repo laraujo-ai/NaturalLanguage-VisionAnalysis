@@ -13,10 +13,12 @@
 #include "../../../common/include/interfaces.hpp"
 #include "../../../common/include/config_parser.hpp"
 #include "../../../common/include/base_model.hpp"
+#include "../../../common/include/utils.hpp"
 #include "../../stream_handler/include/vision_stream_handlers.hpp"
 #include "../../object_detection/include/yolox_detector.hpp"
 #include "../../tracker/include/sort_tracker.hpp"
 #include "../../frame_sampler/include/frame_samplers.hpp"
+
 
 
 namespace nl_video_analysis {
@@ -54,7 +56,7 @@ public:
     VideoAnalysisEngine(const VideoAnalysisConfig& config = VideoAnalysisConfig{});
     ~VideoAnalysisEngine();
 
-    bool addSource(const std::string& source_url, const std::string& camera_id, const std::string& source_type);
+    bool addSource(const std::string& source_url, const std::string& camera_id, const std::string& source_type, const StreamCodec& stream_codec);
 
     void start();
     void stop();

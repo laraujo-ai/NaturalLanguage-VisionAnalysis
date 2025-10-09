@@ -5,11 +5,12 @@
 
 namespace nl_video_analysis {
     
-YOLOXDetector::YOLOXDetector(const std::string& model_path, int num_threads, bool is_fp16)
+YOLOXDetector::YOLOXDetector(const std::string& model_path, int num_threads, bool is_fp16, const std::vector<int>& classes)
     : IBaseModel<cv::Mat, std::vector<Detection>>(model_path, num_threads),
       score_threshold_(0.25f),
       nms_threshold_(0.45f),
       is_fp16_(is_fp16),
+      classes_(classes),
       ratio_(1.0f)
 {
     Ort::AllocatorWithDefaultOptions allocator;
@@ -19,14 +20,6 @@ YOLOXDetector::YOLOXDetector(const std::string& model_path, int num_threads, boo
 
     target_h_ = static_cast<int>(input_shape_[2]);
     target_w_ = static_cast<int>(input_shape_[3]);
-
-    // Print model input information for debugging
-    ONNXTensorElementDataType input_type = tensor_info.GetElementType();
-    std::cout << "YOLOX Model Info:" << std::endl;
-    std::cout << "  Input shape: [" << input_shape_[0] << ", " << input_shape_[1]
-              << ", " << input_shape_[2] << ", " << input_shape_[3] << "]" << std::endl;
-    std::cout << "  Expected data type: " << input_type << " (1=FLOAT, 10=FLOAT16)" << std::endl;
-    std::cout << "  Using FP16: " << (is_fp16_ ? "true" : "false") << std::endl;
 }
 
 std::vector<Detection> YOLOXDetector::detect(const cv::Mat& image, float score_thr, float nms_thr) {
@@ -285,6 +278,11 @@ std::vector<Detection> YOLOXDetector::multiclass_nms_class_agnostic(const std::v
 
     std::vector<Detection> detections;
     for (int idx : keep) {
+        if(std::find(this->classes_.begin(), this->classes_.end(), valid_cls_inds[idx]) == this->classes_.end())
+        {
+            continue;
+        }
+        
         Detection det;
         det.x1 = valid_boxes[idx * 4];
         det.y1 = valid_boxes[idx * 4 + 1];

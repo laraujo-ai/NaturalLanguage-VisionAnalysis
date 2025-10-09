@@ -2,6 +2,7 @@
 #define INFERENCER_HPP
 
 #include "onnx_session.hpp"
+#include "logger.hpp"
 #include <vector>
 #include <iostream>
 
@@ -65,7 +66,7 @@ std::vector<Ort::Value> IBaseModel<InputType, OutputType>::infer(std::vector<Ort
             output_names_cstr.size()
         );
     } catch (const Ort::Exception& e) {
-        std::cerr << "ONNX Runtime error during inference: " << e.what() << std::endl;
+        LOG_ERROR("ONNX Runtime inference error: {}", e.what());
         throw;
     }
 }
