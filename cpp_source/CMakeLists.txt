@@ -5,18 +5,18 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 
-# Add spdlog include directory (parent of spdlog folder)
 include_directories(${CMAKE_SOURCE_DIR}/lib)
 
 find_library(ONNXRUNTIME_LIB onnxruntime
     HINTS
+        /usr/local/lib
         ${CMAKE_SOURCE_DIR}/../onnxruntime/lib
         ${CMAKE_SOURCE_DIR}/onnxruntime/lib
-        /usr/local/lib
         /opt/onnxruntime/lib
 )
 find_path(ONNXRUNTIME_INCLUDE_DIR onnxruntime_cxx_api.h
     HINTS
+        /usr/local/include/onnxruntime/core/session
         ${CMAKE_SOURCE_DIR}/../onnxruntime/include
         ${CMAKE_SOURCE_DIR}/onnxruntime/include
         /usr/local/include/onnxruntime
@@ -54,11 +54,36 @@ pkg_check_modules(GST_APP REQUIRED gstreamer-app-1.0)
 message(STATUS "GStreamer found: ${GSTREAMER_FOUND}")
 message(STATUS "GStreamer include dirs: ${GSTREAMER_INCLUDE_DIRS}")
 
+find_library(MILVUS_LIB milvus_sdk
+    HINTS
+        ${CMAKE_SOURCE_DIR}/../milvus-sdk-cpp/build/src
+        ${CMAKE_SOURCE_DIR}/milvus-sdk-cpp/build/src
+)
+find_path(MILVUS_INCLUDE_DIR milvus/MilvusClient.h
+    HINTS
+        ${CMAKE_SOURCE_DIR}/../milvus-sdk-cpp/src/include
+        ${CMAKE_SOURCE_DIR}/milvus-sdk-cpp/src/include
+)
+
+if(NOT MILVUS_LIB OR NOT MILVUS_INCLUDE_DIR)
+    message(FATAL_ERROR "Milvus SDK not found. Please build milvus-sdk-cpp first.")
+endif()
+
+message(STATUS "Milvus SDK library: ${MILVUS_LIB}")
+message(STATUS "Milvus SDK include: ${MILVUS_INCLUDE_DIR}")
+
+add_library(milvus_sdk STATIC IMPORTED)
+set_target_properties(milvus_sdk PROPERTIES
+    IMPORTED_LOCATION ${MILVUS_LIB}
+    INTERFACE_INCLUDE_DIRECTORIES ${MILVUS_INCLUDE_DIR}
+)
+
 include_directories(
     ${ONNXRUNTIME_INCLUDE_DIR}
     ${OpenCV_INCLUDE_DIRS}
     ${GSTREAMER_INCLUDE_DIRS}
     ${GST_APP_INCLUDE_DIRS}
+    ${MILVUS_INCLUDE_DIR}
 )
 
 add_subdirectory(src)
@@ -73,6 +98,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     object_detection
     onnxruntime
     sort_tracker
+    milvus_sdk
+    vlm_engine
     ${GSTREAMER_LIBRARIES}
     ${GST_APP_LIBRARIES}
 )

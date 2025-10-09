@@ -18,7 +18,7 @@ int main(int argc, char* argv[])
 {
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
-
+    
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <config.json>" << std::endl;
         std::cerr << "Example: " << argv[0] << " config.json" << std::endl;
