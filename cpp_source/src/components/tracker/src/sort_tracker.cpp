@@ -1,4 +1,5 @@
 #include "../include/sort_tracker.hpp"
+#include "../../../common/include/benchmark.hpp"
 
 namespace nl_vision_analysis
 {
@@ -273,6 +274,8 @@ SortTracker::SortTracker(int max_age, int min_hits, double iou_threshold)
 }
 
 std::vector<nlohmann::json> SortTracker::track(const std::vector<nl_video_analysis::Detection>& dets) {
+    nl_video_analysis::ScopedTimer timer("tracking_frame");
+
     frame_count_++;
 
     std::vector<Eigen::Vector4d> trks;

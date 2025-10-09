@@ -68,14 +68,14 @@ public:
     virtual Eigen::Vector4d get_state() const = 0;
 };
 
+class IStorageHandler {
+public:
+    virtual ~IStorageHandler() = default;
+    virtual std::string saveClip(const ClipContainer& clip) = 0;
+    // virtual bool saveEmbeddings(const std::vector<TrackedObject>& objects) = 0;
+};
+
 }
 
 
-// class IStorageHandler {
-// public:
-//     virtual ~IStorageHandler() = default;
-//     virtual std::string saveClip(const ClipContainer& clip, const std::string& path) = 0;
-//     virtual bool saveEmbeddings(const std::vector<TrackedObject>& objects) = 0;
-// };
 
-// }

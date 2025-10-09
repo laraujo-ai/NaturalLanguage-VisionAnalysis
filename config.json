@@ -21,11 +21,11 @@
   ],
   "object_detector" : {
     "type": "yolox",
-    "weights_path" : "/home/nvidia/projects/NaturalLanguage-VisionAnalysis/yolox_m.onnx",
+    "weights_path" : "/home/nvidia/projects/NaturalLanguage-VisionAnalysis/weights/yolox_m_fp16.onnx",
     "number_of_threads" : 4,
     "conf_threshold" : 0.3,
     "nms_threshold" : 0.45,
-    "is_fp16" : false,
+    "is_fp16" : true,
     "classes" : [0]
   },
   "tracker": {

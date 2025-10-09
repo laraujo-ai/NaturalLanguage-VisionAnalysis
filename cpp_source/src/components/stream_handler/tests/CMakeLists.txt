@@ -16,4 +16,4 @@ target_link_libraries(test_stream_handler
 )
 
 enable_testing()
-add_test(NAME FrameSamplerTests COMMAND test_stream_handler)
+add_test(NAME StreamHandlerTest COMMAND test_stream_handler)

@@ -1,4 +1,5 @@
 #include "yolox_detector.hpp"
+#include "../../../common/include/benchmark.hpp"
 #include <iostream>
 #include <numeric>
 #include <algorithm>
@@ -29,6 +30,8 @@ std::vector<Detection> YOLOXDetector::detect(const cv::Mat& image, float score_t
 }
 
 std::vector<Ort::Value> YOLOXDetector::preprocess(const cv::Mat& input) {
+    ScopedTimer timer("detection_preprocess");
+
     auto [input_data, ratio] = preprocessImage(input);
     ratio_ = ratio;
 
@@ -36,7 +39,6 @@ std::vector<Ort::Value> YOLOXDetector::preprocess(const cv::Mat& input) {
     std::vector<Ort::Value> tensors;
 
     if (is_fp16_) {
-        // Convert float32 to float16 for FP16 models
         std::vector<Ort::Float16_t> input_data_fp16(input_data.size());
         for (size_t i = 0; i < input_data.size(); ++i) {
             input_data_fp16[i] = Ort::Float16_t(input_data[i]);
@@ -52,7 +54,6 @@ std::vector<Ort::Value> YOLOXDetector::preprocess(const cv::Mat& input) {
         );
         tensors.push_back(std::move(tensor));
     } else {
-        // Use float32 directly for FP32 models
         input_data_fp32_ = std::move(input_data);
 
         auto tensor = Ort::Value::CreateTensor<float>(
@@ -97,6 +98,8 @@ std::pair<std::vector<float>, float> YOLOXDetector::preprocessImage(const cv::Ma
 }
 
 std::vector<Detection> YOLOXDetector::postprocess(std::vector<Ort::Value>& output_tensors) {
+    ScopedTimer timer("detection_postprocess");
+
     float* output_data = output_tensors[0].GetTensorMutableData<float>();
     auto output_shape = output_tensors[0].GetTensorTypeAndShapeInfo().GetShape();
 

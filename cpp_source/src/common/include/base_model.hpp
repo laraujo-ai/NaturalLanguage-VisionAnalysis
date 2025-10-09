@@ -3,6 +3,7 @@
 
 #include "onnx_session.hpp"
 #include "logger.hpp"
+#include "benchmark.hpp"
 #include <vector>
 #include <iostream>
 
@@ -45,6 +46,8 @@ OutputType IBaseModel<InputType, OutputType>::run(const InputType& input) {
 
 template<typename InputType, typename OutputType>
 std::vector<Ort::Value> IBaseModel<InputType, OutputType>::infer(std::vector<Ort::Value>& input_tensors) {
+    nl_video_analysis::ScopedTimer timer("detection_inference");
+
     std::vector<const char*> input_names_cstr;
     std::vector<const char*> output_names_cstr;
 

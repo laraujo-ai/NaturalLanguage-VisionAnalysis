@@ -1,5 +1,6 @@
 add_subdirectory(frame_sampler)
 add_subdirectory(stream_handler)
 add_subdirectory(video_analysis_engine)
-add_subdirectory(object_detection) 
+add_subdirectory(object_detection)
 add_subdirectory(tracker)
+add_subdirectory(storage_handler)

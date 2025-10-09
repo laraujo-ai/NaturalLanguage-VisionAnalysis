@@ -1,5 +1,6 @@
 #include "../include/VideoAnalysisEngine.hpp"
 #include "../../../common/include/logger.hpp"
+#include "../../../common/include/benchmark.hpp"
 
 namespace nl_video_analysis {
 
@@ -67,8 +68,10 @@ void VideoAnalysisEngine::start() {
     }
 
     is_running_ = true;
+    clips_processed_ = 0;
     processing_threads_.emplace_back(&VideoAnalysisEngine::clipProcessingLoop, this);
     processing_threads_.emplace_back(&VideoAnalysisEngine::objectProcessingLoop, this);
+    processing_threads_.emplace_back(&VideoAnalysisEngine::benchmarkReportingLoop, this);
 
     LOG_INFO("Pipeline started ({} camera(s))", stream_handlers_.size());
 }
@@ -95,6 +98,10 @@ void VideoAnalysisEngine::stop() {
     stream_handlers_.clear();
     camera_ids_.clear();
 
+    // Log final benchmark report
+    std::string final_report = PipelineBenchmark::getInstance().generateReport();
+    LOG_INFO("=== Final Benchmark Report (Total Clips: {}) ==={}", clips_processed_.load(), final_report);
+
     LOG_INFO("Pipeline stopped");
 }
 
@@ -110,7 +117,12 @@ void VideoAnalysisEngine::clipProcessingLoop() {
                 auto clip = handler->getNextClip();
                 if (clip.has_value()) {
                     clip.value().camera_id = camera_ids_[i];
-                    frame_sampler_->sampleFrames(clip.value(), config_.sampled_frames_count);
+
+                    // Benchmark frame sampling
+                    {
+                        ScopedTimer timer("frame_sampling", camera_ids_[i]);
+                        frame_sampler_->sampleFrames(clip.value(), config_.sampled_frames_count);
+                    }
 
                     std::unique_lock<std::mutex> lock(clip_queue_mutex_);
                     if (clip_queue_.size() < static_cast<size_t>(config_.queue_max_size)) {
@@ -134,31 +146,79 @@ void VideoAnalysisEngine::objectProcessingLoop() {
             continue;
         }
 
-        for (const auto& frame : clip.sampled_frames) {
-            std::vector<Detection> detections = object_detector_->detect(
-                frame,
-                config_.object_detector.conf_threshold,
-                config_.object_detector.nms_threshold
-            );
-            std::vector<nlohmann::json> tracked_objects = tracker_->track(detections);
+        // Benchmark entire clip processing
+        ScopedTimer clip_timer("clip_total_processing", clip.camera_id);
 
-            std::string base_path = "/home/nvidia/projects/NaturalLanguage-VisionAnalysis/test_cropps/";
-            for (const auto& tracklet : tracked_objects) {
-                auto bbox = tracklet["BoundingBox"];
-                int64_t tracker_id = tracklet["TrackerId"].get<int64_t>();
+        // Benchmark object detection for entire clip
+        std::vector<std::vector<Detection>> all_detections;
+        {
+            ScopedTimer detection_timer("clip_object_detection", clip.camera_id);
+            all_detections.reserve(clip.sampled_frames.size());
 
-                std::optional<cv::Mat> cropped = crop_object(
+            for (const auto& frame : clip.sampled_frames) {
+                std::vector<Detection> detections = object_detector_->detect(
                     frame,
-                    bbox[0], bbox[1], bbox[2], bbox[3],
-                    10
+                    config_.object_detector.conf_threshold,
+                    config_.object_detector.nms_threshold
                 );
+                all_detections.push_back(std::move(detections));
+            }
+        }
 
-                if (cropped) {
-                    std::string file_path = base_path + std::to_string(tracker_id) + ".jpg";
-                    cv::imwrite(file_path, cropped.value());
+        // Benchmark tracking for entire clip
+        std::vector<std::vector<nlohmann::json>> all_tracked_objects;
+        {
+            ScopedTimer tracking_timer("clip_tracking", clip.camera_id);
+            all_tracked_objects.reserve(all_detections.size());
+
+            for (const auto& detections : all_detections) {
+                std::vector<nlohmann::json> tracked_objects = tracker_->track(detections);
+                all_tracked_objects.push_back(std::move(tracked_objects));
+            }
+        }
+
+        // Benchmark cropping and saving for entire clip
+        {
+            ScopedTimer save_timer("clip_crop_and_save", clip.camera_id);
+            std::string base_path = "/home/nvidia/projects/NaturalLanguage-VisionAnalysis/test_cropps/";
+
+            for (size_t i = 0; i < clip.sampled_frames.size(); ++i) {
+                const auto& frame = clip.sampled_frames[i];
+                const auto& tracked_objects = all_tracked_objects[i];
+
+                for (const auto& tracklet : tracked_objects) {
+                    auto bbox = tracklet["BoundingBox"];
+                    int64_t tracker_id = tracklet["TrackerId"].get<int64_t>();
+
+                    std::optional<cv::Mat> cropped = crop_object(
+                        frame,
+                        bbox[0], bbox[1], bbox[2], bbox[3],
+                        10
+                    );
+
+                    if (cropped) {
+                        std::string file_path = base_path + std::to_string(tracker_id) + ".jpg";
+                        cv::imwrite(file_path, cropped.value());
+                    }
                 }
             }
         }
+
+        clips_processed_++;
+    }
+}
+
+void VideoAnalysisEngine::benchmarkReportingLoop() {
+    const int report_interval_seconds = 30;
+
+    while (is_running_) {
+        std::this_thread::sleep_for(std::chrono::seconds(report_interval_seconds));
+
+        if (!is_running_) break;
+
+        // Generate and log benchmark report
+        std::string report = PipelineBenchmark::getInstance().generateReport();
+        LOG_INFO("=== Benchmark Report (Clips Processed: {}) ==={}", clips_processed_.load(), report);
     }
 }
 

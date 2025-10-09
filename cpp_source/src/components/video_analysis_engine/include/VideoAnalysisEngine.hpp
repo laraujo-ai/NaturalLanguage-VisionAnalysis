@@ -40,11 +40,15 @@ private:
     std::atomic<bool> is_running_;
 
     void clipProcessingLoop();
+    void benchmarkReportingLoop();
 
     // Commented out for future use:
     std::unique_ptr<YOLOXDetector> object_detector_;
     std::unique_ptr<nl_vision_analysis::SortTracker> tracker_;
     void objectProcessingLoop();
+
+    // Benchmark tracking
+    std::atomic<size_t> clips_processed_{0};
 
     // std::unique_ptr<IStorageHandler> storage_handler_;
     // std::queue<std::vector<TrackedObject>> tracked_objects_queue_;
