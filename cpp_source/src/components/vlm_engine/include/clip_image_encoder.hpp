@@ -8,9 +8,10 @@
 
 namespace nl_vision_analysis {
 
-    class CLIPImageEncoder : public IBaseModel<cv::Mat, std::vector<float>> {
+    class CLIPImageEncoder : public IBaseModel<const cv::Mat&, std::vector<float>> {
         public:
             CLIPImageEncoder(const std::string& model_path, const int num_threads, bool is_fp16 = false);
+            std::vector<float> encode(const cv::Mat& iFrame);
             ~CLIPImageEncoder() override = default;
 
         protected:

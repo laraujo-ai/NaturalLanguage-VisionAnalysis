@@ -49,7 +49,6 @@ bool MilvusStorageHandler::connectToDatabase() {
     }
 
     milvus::ConnectParam connect_param{db_host_, static_cast<uint16_t>(db_port_), db_user_, db_password_};
-
     auto status = db_client_->Connect(connect_param);
 
     if (status.IsOk()) {
@@ -118,7 +117,7 @@ std::string MilvusStorageHandler::saveClipToDisk(const ClipContainer& clip) {
 }
 
 // will need to pass the embeddings for the clip to this method as well
-std::string MilvusStorageHandler::saveClip(const ClipContainer& clip) {
+std::string MilvusStorageHandler::saveClip(const ClipContainer& clip, std::map<uint64_t, std::vector<std::vector<float>>>& embeddings_map) {
     if (!is_connected_) {
         LOG_INFO("[MilvusStorageHandler] Not connected to database, attempting to reconnect...");
         if (!connectToDatabase()) {
@@ -127,6 +126,11 @@ std::string MilvusStorageHandler::saveClip(const ClipContainer& clip) {
     }
 
     std::string clip_path = saveClipToDisk(clip);
+    for(const auto& [tracklet_id, embeddings_list] : embeddings_map)
+    {
+        std::vector<float> resulting_embedding = nl_vision_analysis::AveragepoolEmbeddings(embedding_list);
+    }
+
     if (clip_path.empty()) {
         LOG_ERROR("[MilvusStorageHandler] Failed to save clip to disk");
         return "";

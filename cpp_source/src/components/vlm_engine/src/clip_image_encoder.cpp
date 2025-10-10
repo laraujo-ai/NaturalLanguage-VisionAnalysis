@@ -1,10 +1,11 @@
 #include "clip_image_encoder.hpp"
+#include "../../../common/include/benchmark.hpp"
 #include <stdexcept>
 
 namespace nl_vision_analysis {
 
     CLIPImageEncoder::CLIPImageEncoder(const std::string& model_path, const int num_threads, bool is_fp16)
-        : IBaseModel<cv::Mat, std::vector<float>>(model_path, num_threads),
+        : IBaseModel<const cv::Mat&, std::vector<float>>(model_path, num_threads),
           is_fp16_(is_fp16)
     {
         Ort::AllocatorWithDefaultOptions allocator;
@@ -20,7 +21,13 @@ namespace nl_vision_analysis {
         LOG_INFO("CLIPImageEncoder initialized with target size: {}x{}", target_size_, target_size_);
     }
 
+    std::vector<float> CLIPImageEncoder::encode(const cv::Mat& iFrame)
+    {
+        return this->run(iFrame);        
+    }
+
     std::vector<Ort::Value> CLIPImageEncoder::preprocess(const cv::Mat& input) {
+        nl_video_analysis::ScopedTimer timer("clip_preprocess");
 
         cv::Mat img_rgb;
         cv::cvtColor(input, img_rgb, cv::COLOR_BGR2RGB);
@@ -107,6 +114,8 @@ namespace nl_vision_analysis {
     }
 
     std::vector<float> CLIPImageEncoder::postprocess(std::vector<Ort::Value>& output_tensors) {
+        nl_video_analysis::ScopedTimer timer("clip_postprocess");
+
         if (output_tensors.empty()) {
             throw std::runtime_error("No output tensors from CLIP model");
         }

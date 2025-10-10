@@ -18,6 +18,7 @@
 #include "../../object_detection/include/yolox_detector.hpp"
 #include "../../vlm_engine/include/clip_image_encoder.hpp"
 #include "../../tracker/include/sort_tracker.hpp"
+#include "../../storage_hanlder/include/milvus_storage_handler.hpp"
 #include "../../frame_sampler/include/frame_samplers.hpp"
 #include "../../../common/include/logger.hpp"
 #include "../../../common/include/benchmark.hpp"

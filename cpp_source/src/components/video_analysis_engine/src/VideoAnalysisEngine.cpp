@@ -4,11 +4,16 @@ namespace nl_video_analysis {
 
 VideoAnalysisEngine::VideoAnalysisEngine(const VideoAnalysisConfig& config)
     : config_(config), is_running_(false) {
-
     frame_sampler_ = std::make_unique<UniformFrameSampler>();
     object_detector_ = std::make_unique<YOLOXDetector>(config_.object_detector.weights_path, config_.object_detector.number_of_threads, config_.object_detector.is_fp16, config_.object_detector.classes);
     tracker_ = std::make_unique<nl_vision_analysis::SortTracker>(config_.tracker.max_age, config_.tracker.min_hits, config_.tracker.iou_threshold);
     clip_image_encoder_ = std::make_unique<nl_vision_analysis::CLIPImageEncoder>(config_.image_encoder.model_path, config_.image_encoder.num_threads, config_.image_encoder.is_fp16); 
+    storage_handler_ = std::make_unique<nl_vision_analysis::MilvusStorageHandler>(config_.storage_handler.clip_storage_type, 
+                                                                                 config_.storage_handler.clip_storage_path,
+                                                                                 config_.storage_handler.db_host,
+                                                                                 config_.storage_handler.db_port,
+                                                                                 config_.storage_handler.db_user,
+                                                                                 config_.storage_handler.db_password);
 }
 
 VideoAnalysisEngine::~VideoAnalysisEngine() {
@@ -145,10 +150,7 @@ void VideoAnalysisEngine::objectProcessingLoop() {
             continue;
         }
 
-        // Benchmark entire clip processing
         ScopedTimer clip_timer("clip_total_processing", clip.camera_id);
-
-        // Benchmark object detection for entire clip
         std::vector<std::vector<Detection>> all_detections;
         {
             ScopedTimer detection_timer("clip_object_detection", clip.camera_id);
@@ -164,45 +166,35 @@ void VideoAnalysisEngine::objectProcessingLoop() {
             }
         }
 
-        // Benchmark tracking for entire clip
         std::vector<std::vector<nlohmann::json>> all_tracked_objects;
-        {
-            ScopedTimer tracking_timer("clip_tracking", clip.camera_id);
-            all_tracked_objects.reserve(all_detections.size());
+        all_tracked_objects.reserve(all_detections.size());
 
-            for (const auto& detections : all_detections) {
-                std::vector<nlohmann::json> tracked_objects = tracker_->track(detections);
-                all_tracked_objects.push_back(std::move(tracked_objects));
-            }
+        for (const auto& detections : all_detections) {
+            std::vector<nlohmann::json> tracked_objects = tracker_->track(detections);
+            all_tracked_objects.push_back(std::move(tracked_objects));
         }
+        std::string base_path = "/home/nvidia/projects/NaturalLanguage-VisionAnalysis/test_cropps/";
+        std::map<int64_t, std::vector<std::vector<float>>> tracklet_to_embeddings;
+        for (size_t i = 0; i < clip.sampled_frames.size(); ++i) {
+            const auto& frame = clip.sampled_frames[i];
+            const auto& tracked_objects = all_tracked_objects[i];
 
-        // Benchmark cropping and saving for entire clip
-        {
-            ScopedTimer save_timer("clip_crop_and_save", clip.camera_id);
-            std::string base_path = "/home/nvidia/projects/NaturalLanguage-VisionAnalysis/test_cropps/";
+            for (const auto& tracklet : tracked_objects) {
+                auto bbox = tracklet["BoundingBox"];
+                int64_t tracker_id = tracklet["TrackerId"].get<int64_t>();
 
-            for (size_t i = 0; i < clip.sampled_frames.size(); ++i) {
-                const auto& frame = clip.sampled_frames[i];
-                const auto& tracked_objects = all_tracked_objects[i];
-
-                for (const auto& tracklet : tracked_objects) {
-                    auto bbox = tracklet["BoundingBox"];
-                    int64_t tracker_id = tracklet["TrackerId"].get<int64_t>();
-
-                    std::optional<cv::Mat> cropped = crop_object(
-                        frame,
-                        bbox[0], bbox[1], bbox[2], bbox[3],
-                        10
-                    );
-
-                    if (cropped) {
-                        std::string file_path = base_path + std::to_string(tracker_id) + ".jpg";
-                        cv::imwrite(file_path, cropped.value());
-                    }
+                std::optional<cv::Mat> cropped = crop_object(
+                    frame,
+                    bbox[0], bbox[1], bbox[2], bbox[3],
+                    10
+                );
+                if (cropped) {
+                    std::vector<float> embedding = clip_image_encoder_->encode(cropped.value());
+                    tracklet_to_embeddings[tracker_id].push_back(embedding);
                 }
             }
         }
-
+        storage_handler_->saveClip(clip, tracket_to_embedding);
         clips_processed_++;
     }
 }

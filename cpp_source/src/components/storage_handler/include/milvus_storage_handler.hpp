@@ -21,7 +21,7 @@ namespace nl_video_analysis
                              const std::string& db_password);
 
         ~MilvusStorageHandler() override;
-        std::string saveClip(const ClipContainer& clip) override;
+        std::string saveClip(const ClipContainer& clip, std::map<uint64_t, std::vector<std::vector<float>>>& embeddings_map) override;
 
     private:
         bool connectToDatabase();

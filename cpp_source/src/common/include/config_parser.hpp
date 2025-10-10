@@ -60,6 +60,14 @@ struct ClipImageEncoderConfig {
     bool is_fp16;    
 };
 
+struct StorageHandlerConfig {
+    std::string clip_storage_type;
+    std::string clip_storage_path;
+    std::string db_host;
+    int db_port;
+    std::string db_user;
+    std::string db_password;
+}
 struct VideoAnalysisConfig {
     int max_connections = 10;
     int clip_length = 30;

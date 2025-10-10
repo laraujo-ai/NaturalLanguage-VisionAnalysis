@@ -100,15 +100,26 @@ std::pair<std::vector<float>, float> YOLOXDetector::preprocessImage(const cv::Ma
 std::vector<Detection> YOLOXDetector::postprocess(std::vector<Ort::Value>& output_tensors) {
     ScopedTimer timer("detection_postprocess");
 
-    float* output_data = output_tensors[0].GetTensorMutableData<float>();
     auto output_shape = output_tensors[0].GetTensorTypeAndShapeInfo().GetShape();
 
     size_t output_size = 1;
     for (auto dim : output_shape) {
         output_size *= dim;
     }
+    std::vector<float> output_data_fp32;
 
-    return postprocessOutputs(output_data, output_size, ratio_, score_threshold_, nms_threshold_);
+    if (is_fp16_) {
+        // Convert FP16 output to FP32
+        Ort::Float16_t* output_data_fp16 = output_tensors[0].GetTensorMutableData<Ort::Float16_t>();
+        output_data_fp32.resize(output_size);
+        for (size_t i = 0; i < output_size; ++i) {
+            output_data_fp32[i] = static_cast<float>(output_data_fp16[i]);
+        }
+        return postprocessOutputs(output_data_fp32.data(), output_size, ratio_, score_threshold_, nms_threshold_);
+    } else {
+        float* output_data = output_tensors[0].GetTensorMutableData<float>();
+        return postprocessOutputs(output_data, output_size, ratio_, score_threshold_, nms_threshold_);
+    }
 }
 
 std::vector<Detection> YOLOXDetector::postprocessOutputs(const float* outputs, size_t output_size,

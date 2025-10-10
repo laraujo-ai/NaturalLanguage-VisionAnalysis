@@ -2,7 +2,7 @@
   "max_connections": 10,
   "clip_length" : 5,
   "sampler_type": "uniform",
-  "sampled_frames_count": 5,
+  "sampled_frames_count": 10,
   "queue_max_size": 100,
 
   "gst_buffer_size": 5,
@@ -17,12 +17,19 @@
       "source_url": "/home/nvidia/projects/NaturalLanguage-VisionAnalysis/fake_streaming.mp4",
       "source_type": "file",
       "stream_codec" : "h264"
+    },
+    {
+      "camera_id": "Entrance Camera",
+      "source_url": "rtsp://vtviewer:Vtech123!@192.168.1.121/cam/realmonitor?channel=1&subtype=2",
+      "source_type": "rtsp",
+      "stream_codec" : "h264"
     }
+
   ],
   "object_detector" : {
     "type": "yolox",
     "weights_path" : "/home/nvidia/projects/NaturalLanguage-VisionAnalysis/weights/yolox_m_fp16.onnx",
-    "number_of_threads" : 4,
+    "number_of_threads" : 2,
     "conf_threshold" : 0.3,
     "nms_threshold" : 0.45,
     "is_fp16" : true,
@@ -36,6 +43,6 @@
   "image_encoder": {
     "model_path": "/home/nvidia/projects/NaturalLanguage-VisionAnalysis/weights/clip_image_fp16.onnx",
     "is_fp16": true,
-    "number_of_threads": 4
+    "number_of_threads": 2
   }
 }

@@ -6,7 +6,7 @@ target_link_libraries(video_analysis_engine PUBLIC
     frame_sampler
     object_detection
     sort_tracker
-    clip_image_encoder
+    vlm_engine
     ${OpenCV_LIBS}
     ${GSTREAMER_LIBRARIES}
     ${GST_APP_LIBRARIES}

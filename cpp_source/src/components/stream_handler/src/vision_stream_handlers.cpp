@@ -199,7 +199,7 @@ void GStreamerRTSPHandler::captureLoop() {
 void GStreamerRTSPHandler::processFrame(const cv::Mat& frame, uint64_t timestamp_ms) {
     if (!is_active_) return;
 
-    // Track first frame timestamp
+    // Track first frame timestamp.(This will probrably have to change to adapt to the way we'll retrieve the clips)
     if (current_clip_.empty()) {
         clip_start_timestamp_ms_ = timestamp_ms;
     }
@@ -239,13 +239,11 @@ GstFlowReturn GStreamerRTSPHandler::onNewSample(GstElement* appsink, gpointer us
         GstClockTime pts = GST_BUFFER_PTS(buffer);
         uint64_t relative_timestamp_ms = GST_TIME_AS_MSECONDS(pts);
 
-        // Initialize time offset on first frame
         if (handler->stream_start_pts_ms_ == 0) {
             handler->stream_start_pts_ms_ = relative_timestamp_ms;
             handler->stream_start_system_time_ = std::chrono::system_clock::now();
         }
 
-        // Convert relative timestamp to absolute UTC timestamp
         auto elapsed = std::chrono::milliseconds(relative_timestamp_ms - handler->stream_start_pts_ms_);
         auto absolute_time = handler->stream_start_system_time_ + elapsed;
         uint64_t absolute_timestamp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(

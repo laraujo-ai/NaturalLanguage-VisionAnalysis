@@ -18,6 +18,7 @@ VideoAnalysisConfig ConfigParser::parseFromFile(const std::string& filepath) {
     bool in_tracker_object = false;
     bool in_classes_array = false;
     bool in_image_encoder_object = false;
+    bool in_storage_hanlder_object = false;
 
     while (std::getline(file, line)) {
         line = trim(line);
@@ -230,6 +231,42 @@ VideoAnalysisConfig ConfigParser::parseFromFile(const std::string& filepath) {
                 }
             }
         }
+
+        if(in_storage_hanlder_object)
+        {
+            if (line.find("\"clip_storage_type\"") != std::string::npos) {
+                size_t colon = line.find(':');
+                if (colon != std::string::npos) {
+                    config.storage_hanlder.clip_storage_type = parseString(line.substr(colon + 1));
+                }
+            } else if (line.find("\"clip_storage_path\"") != std::string::npos) {
+                size_t colon = line.find(':');
+                if (colon != std::string::npos) {
+                    config.storage_handler.clip_storage_path = parseString(line.substr(colon + 1));
+                }
+            } else if (line.find("\"db_port\"") != std::string::npos) {
+                size_t colon = line.find(':');
+                if (colon != std::string::npos) {
+                    config.storage_handler.db_port = parseInt(line.substr(colon + 1));
+                }
+            } else if (line.find("\"db_host\"") != std::string::npos) {
+                size_t colon = line.find(':');
+                if (colon != std::string::npos) {
+                    config.storage_handler.db_host = parseBool(line.substr(colon + 1));
+                }
+            } else if (line.find("\"db_user\"") != std::string::npos) {
+                size_t colon = line.find(':');
+                if (colon != std::string::npos) {
+                    config.storage_handler.db_user = parseBool(line.substr(colon + 1));
+                }
+            } else if (line.find("\"db_password\"") != std::string::npos) {
+                size_t colon = line.find(':');
+                if (colon != std::string::npos) {
+                    config.storage_handler.db_password = parseBool(line.substr(colon + 1));
+                }
+            }                                 
+        }
+
         size_t colon = line.find(':');
         if (colon == std::string::npos) {
             continue;

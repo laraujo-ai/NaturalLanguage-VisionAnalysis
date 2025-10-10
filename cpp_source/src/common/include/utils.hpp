@@ -4,6 +4,9 @@
 #include <opencv2/opencv.hpp>
 #include <optional>
 #include <algorithm>
+#include <cmath>
+#include <stdexcept>
+#include <vector>
 
 namespace nl_video_analysis {
 inline std::optional<cv::Mat> crop_object(const cv::Mat& frame,
@@ -42,6 +45,47 @@ inline std::optional<cv::Mat> crop_object(const cv::Mat& frame,
     }
 
     return cropped;
+}
+
+inline std::vector<float> averageTrackEmbeddings(const std::vector<std::vector<float>>& track_embeddings) {
+    if (track_embeddings.empty()) {
+        return std::vector<float>();
+    }
+
+    size_t embedding_dim = track_embeddings[0].size();
+
+    for (const auto& embedding : track_embeddings) {
+        if (embedding.size() != embedding_dim) {
+            throw std::runtime_error("All embeddings must have the same dimension for average pooling");
+        }
+    }
+
+    std::vector<float> averaged_embedding(embedding_dim, 0.0f);
+
+    for (const auto& embedding : track_embeddings) {
+        for (size_t i = 0; i < embedding_dim; ++i) {
+            averaged_embedding[i] += embedding[i];
+        }
+    }
+
+    float num_embeddings = static_cast<float>(track_embeddings.size());
+    for (float& val : averaged_embedding) {
+        val /= num_embeddings;
+    }
+
+    float norm = 0.0f;
+    for (float val : averaged_embedding) {
+        norm += val * val;
+    }
+    norm = std::sqrt(norm);
+
+    if (norm > 1e-6f) {
+        for (float& val : averaged_embedding) {
+            val /= norm;
+        }
+    }
+
+    return averaged_embedding;
 }
 
 } 
