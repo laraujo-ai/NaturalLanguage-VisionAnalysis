@@ -118,11 +118,18 @@ void VideoAnalysisEngine::clipProcessingLoop() {
         for (size_t i = 0; i < stream_handlers_.size(); ++i) {
             auto& handler = stream_handlers_[i];
             if (handler->isActive()) {
-                auto clip = handler->getNextClip();
+                std::optional<ClipContainer> clip;
+
+                // Benchmark clip retrieval (includes network/file I/O latency)
+                {
+                    ScopedTimer timer("clip_retrieval", camera_ids_[i]);
+                    clip = handler->getNextClip();
+                }
+
                 if (clip.has_value()) {
                     clip.value().camera_id = camera_ids_[i];
 
-                    // Benchmark frame sampling
+                    // Benchmark frame sampling (actual processing only)
                     {
                         ScopedTimer timer("frame_sampling", camera_ids_[i]);
                         frame_sampler_->sampleFrames(clip.value(), config_.sampled_frames_count);

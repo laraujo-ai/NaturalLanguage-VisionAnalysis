@@ -16,11 +16,9 @@ namespace nl_video_analysis {
         if (input_shape_.size() != 4) {
             throw std::runtime_error("Expected 4D input tensor for CLIP image encoder");
         }
-
         target_size_ = static_cast<int>(input_shape_[2]);
         LOG_INFO("CLIPImageEncoder initialized with target size: {}x{}", target_size_, target_size_);
     }
-
     std::vector<float> CLIPImageEncoder::encode(const cv::Mat& iFrame)
     {
         return this->run(iFrame);        
