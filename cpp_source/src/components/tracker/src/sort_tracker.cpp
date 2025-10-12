@@ -1,7 +1,7 @@
 #include "../include/sort_tracker.hpp"
 #include "../../../common/include/benchmark.hpp"
 
-namespace nl_vision_analysis
+namespace nl_video_analysis
 {
 
 KalmanFilter::KalmanFilter(int dim_x, int dim_z)

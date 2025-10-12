@@ -18,7 +18,7 @@ VideoAnalysisConfig ConfigParser::parseFromFile(const std::string& filepath) {
     bool in_tracker_object = false;
     bool in_classes_array = false;
     bool in_image_encoder_object = false;
-    bool in_storage_hanlder_object = false;
+    bool in_storage_handler_object = false;
 
     while (std::getline(file, line)) {
         line = trim(line);
@@ -46,6 +46,11 @@ VideoAnalysisConfig ConfigParser::parseFromFile(const std::string& filepath) {
         }
         if (line.find("\"image_encoder\"") != std::string::npos) {
             in_image_encoder_object = true;
+            continue;
+        }
+
+        if (line.find("\"storage_handler\"") != std::string::npos) {
+            in_storage_handler_object = true;
             continue;
         }
 
@@ -232,12 +237,12 @@ VideoAnalysisConfig ConfigParser::parseFromFile(const std::string& filepath) {
             }
         }
 
-        if(in_storage_hanlder_object)
+        if(in_storage_handler_object)
         {
             if (line.find("\"clip_storage_type\"") != std::string::npos) {
                 size_t colon = line.find(':');
                 if (colon != std::string::npos) {
-                    config.storage_hanlder.clip_storage_type = parseString(line.substr(colon + 1));
+                    config.storage_handler.clip_storage_type = parseString(line.substr(colon + 1));
                 }
             } else if (line.find("\"clip_storage_path\"") != std::string::npos) {
                 size_t colon = line.find(':');

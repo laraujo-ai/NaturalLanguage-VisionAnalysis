@@ -14,7 +14,7 @@
 
 #include "../../../common/include/interfaces.hpp"
 
-namespace nl_vision_analysis
+namespace nl_video_analysis
 {
 constexpr int MAX_HISTORY_SIZE = 200;
 

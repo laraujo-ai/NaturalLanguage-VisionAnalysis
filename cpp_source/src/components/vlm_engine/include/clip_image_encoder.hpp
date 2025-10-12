@@ -6,7 +6,7 @@
 
 #include "../../../common/include/base_model.hpp"
 
-namespace nl_vision_analysis {
+namespace nl_video_analysis {
 
     class CLIPImageEncoder : public IBaseModel<const cv::Mat&, std::vector<float>> {
         public:

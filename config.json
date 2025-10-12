@@ -44,5 +44,15 @@
     "model_path": "/home/nvidia/projects/NaturalLanguage-VisionAnalysis/weights/clip_image_fp16.onnx",
     "is_fp16": true,
     "number_of_threads": 2
+  },
+  "storage_handler" : {
+    "clip_storage_type" : "disk",
+    "clip_storage_path" : "/home/nvidia/projects/NaturalLanguage-VisionAnalysis/clips",
+    "db_port" : 19530,
+    "db_host" : "localhost",
+    "db_user" : "",
+    "db_password" : "",
+    "db_name" : "vision_analysis",
+    "collection_name" : "embeddings"
   }
 }

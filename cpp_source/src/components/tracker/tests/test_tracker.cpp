@@ -2,7 +2,7 @@
 #include "../include/sort_tracker.hpp"
 #include <Eigen/Dense>
 
-using namespace nl_vision_analysis;
+using namespace nl_video_analysis;
 
 TEST_CASE("Tracklet lifecycle", "[tracker]") {
     Eigen::Vector4d bbox;

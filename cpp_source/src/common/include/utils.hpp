@@ -73,18 +73,6 @@ inline std::vector<float> averageTrackEmbeddings(const std::vector<std::vector<f
         val /= num_embeddings;
     }
 
-    float norm = 0.0f;
-    for (float val : averaged_embedding) {
-        norm += val * val;
-    }
-    norm = std::sqrt(norm);
-
-    if (norm > 1e-6f) {
-        for (float& val : averaged_embedding) {
-            val /= norm;
-        }
-    }
-
     return averaged_embedding;
 }
 

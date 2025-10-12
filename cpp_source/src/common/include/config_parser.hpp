@@ -67,7 +67,8 @@ struct StorageHandlerConfig {
     int db_port;
     std::string db_user;
     std::string db_password;
-}
+};
+
 struct VideoAnalysisConfig {
     int max_connections = 10;
     int clip_length = 30;
@@ -81,6 +82,7 @@ struct VideoAnalysisConfig {
     ObjectDetectorConfig object_detector;
     TrackerConfig tracker;
     ClipImageEncoderConfig image_encoder;
+    StorageHandlerConfig storage_handler;
 
     
     int gst_buffer_size = 5;

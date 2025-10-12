@@ -1,0 +1,182 @@
+ARG BASE_IMAGE=nvcr.io/nvidia/l4t-tensorrt:r8.5.2-runtime
+FROM ${BASE_IMAGE} as base
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
+# ============================================================================
+# Stage 1: Build Dependencies and System Setup
+# ============================================================================
+FROM base as builder-base
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    wget \
+    pkg-config \
+    python3 \
+    python3-pip \
+    python3-dev \
+    libssl-dev \
+    zlib1g-dev \
+    autoconf \
+    automake \
+    libtool \
+    curl \
+    vim \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y \
+    libgstreamer1.0-dev \
+    libgstreamer-plugins-base1.0-dev \
+    libopencv-dev \
+    libeigen3-dev \
+    nlohmann-json3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install --no-cache-dir \
+    numpy \
+    wheel \
+    setuptools
+
+WORKDIR /build
+
+# ============================================================================
+# Stage 2: Build ONNX Runtime with CUDA/TensorRT (ARM64)
+# ============================================================================
+FROM builder-base as onnx-builder
+
+ARG ONNXRUNTIME_TAG=v1.16.0
+ARG PARALLEL_JOBS=4
+
+RUN fallocate -l 8G /swapfile && \
+    chmod 600 /swapfile && \
+    mkswap /swapfile && \
+    swapon /swapfile
+
+RUN git config --global http.postBuffer 524288000 && \
+    git config --global http.lowSpeedLimit 0 && \
+    git config --global http.lowSpeedTime 999999
+
+RUN git clone --recursive --depth 1 --branch ${ONNXRUNTIME_TAG} \
+    https://github.com/microsoft/onnxruntime.git
+
+WORKDIR /build/onnxruntime
+RUN mkdir -p /build/eigen && cd /build/eigen && \
+    wget -q https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz && \
+    tar xzf eigen-3.4.0.tar.gz
+
+RUN cat > /tmp/mycmake <<'EOF' && chmod +x /tmp/mycmake
+exec /usr/bin/cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 "$@"
+EOF
+
+ENV CMAKE_COMMAND=/tmp/mycmake
+
+RUN python3 tools/ci_build/build.py \
+    --config Release \
+    --build_dir /build/onnxruntime_build \
+    --build_shared_lib \
+    --parallel ${PARALLEL_JOBS} \
+    --use_cuda --cuda_home /usr/local/cuda \
+    --cudnn_home /usr/lib/aarch64-linux-gnu \
+    --use_tensorrt --tensorrt_home /usr/lib/aarch64-linux-gnu \
+    --cmake_extra_defines FETCHCONTENT_SOURCE_DIR_EIGEN="/build/eigen/eigen-3.4.0" \
+    --skip_tests \
+    && echo "ONNX Runtime build complete"
+
+RUN if [ -d /build/onnxruntime_build/Release/_deps ]; then \
+        find /build/onnxruntime_build/Release/_deps -type f -name 'CMakeLists.txt' | while read -r f; do \
+            if grep -q 'cmake_minimum_required' "$f"; then \
+                sed -i '/cmake_minimum_required/d' "$f"; \
+            fi; \
+        done; \
+    fi
+
+RUN mkdir -p /opt/onnxruntime/lib /opt/onnxruntime/include && \
+    cp /build/onnxruntime_build/Release/libonnxruntime.so.1.16.0 /opt/onnxruntime/lib/ && \
+    cp /build/onnxruntime_build/Release/libonnxruntime_providers_cuda.so /opt/onnxruntime/lib/ && \
+    cp /build/onnxruntime_build/Release/libonnxruntime_providers_tensorrt.so /opt/onnxruntime/lib/ && \
+    cp /build/onnxruntime_build/Release/libonnxruntime_providers_shared.so /opt/onnxruntime/lib/ && \
+    cd /opt/onnxruntime/lib && ln -sf libonnxruntime.so.1.16.0 libonnxruntime.so && \
+    cp -r /build/onnxruntime/include/onnxruntime /opt/onnxruntime/include/
+
+# ============================================================================
+# Stage 3: Build Milvus SDK C++ (Shared Library)
+# ============================================================================
+FROM builder-base as milvus-builder
+
+ARG MILVUS_SDK_TAG=v2.3.2
+ARG PARALLEL_JOBS=4
+
+RUN git clone --recursive --depth 1 --branch ${MILVUS_SDK_TAG} \
+    https://github.com/milvus-io/milvus-sdk-cpp.git || \
+    git clone --recursive --depth 1 \
+    https://github.com/milvus-io/milvus-sdk-cpp.git
+
+WORKDIR /build/milvus-sdk-cpp
+
+RUN mkdir -p build && cd build && \
+    cmake .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_SHARED_LIBS=ON \
+        -DCMAKE_INSTALL_PREFIX=/usr/local && \
+    make -j${PARALLEL_JOBS} && \
+    echo "Milvus SDK build complete"
+
+RUN cd build && \
+    make install && \
+    ldconfig && \
+    find _deps/grpc-build -name "libgrpc*.so*" -exec cp {} /usr/local/lib/ \; && \
+    find _deps/grpc-build -name "libgpr*.so*" -exec cp {} /usr/local/lib/ \; && \
+    find _deps/grpc-build -name "libaddress_sorting.so*" -exec cp {} /usr/local/lib/ \; 2>/dev/null || true && \
+    find _deps/grpc-build -name "libupb*.so*" -exec cp {} /usr/local/lib/ \; 2>/dev/null || true && \
+    find _deps/grpc-build/third_party/protobuf -name "libprotobuf*.so*" -exec cp {} /usr/local/lib/ \; && \
+    find _deps/grpc-build/third_party/protobuf -name "libprotoc*.so*" -exec cp {} /usr/local/lib/ \; 2>/dev/null || true && \
+    find _deps/grpc-build/third_party/abseil-cpp/absl -name "*.so*" -type f -exec cp {} /usr/local/lib/ \; && \
+    ldconfig
+
+# ============================================================================
+# Stage 4: copy our dependencies to the runtime image and build our code
+# ============================================================================
+
+FROM base as runtime
+
+RUN apt-get update && apt-get install -y \
+    libeigen3-dev \
+    nlohmann-json3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=onnx-builder /opt/onnxruntime /opt/onnxruntime
+COPY --from=milvus-builder /usr/local/lib/libmilvus*.so* /usr/local/lib/
+COPY --from=milvus-builder /usr/local/lib/libgrpc*.so* /usr/local/lib/
+COPY --from=milvus-builder /usr/local/lib/libgpr*.so* /usr/local/lib/
+COPY --from=milvus-builder /usr/local/lib/libprotobuf*.so* /usr/local/lib/
+COPY --from=milvus-builder /usr/local/lib/libabsl*.so* /usr/local/lib/
+COPY --from=milvus-builder /usr/local/lib/libaddress_sorting.so* /usr/local/lib/ 2>/dev/null || true
+COPY --from=milvus-builder /usr/local/lib/libupb*.so* /usr/local/lib/ 2>/dev/null || true
+COPY --from=milvus-builder /usr/local/lib/libprotoc*.so* /usr/local/lib/ 2>/dev/null || true
+COPY --from=milvus-builder /usr/local/include/milvus /usr/local/include/milvus
+
+RUN ldconfig
+ENV LD_LIBRARY_PATH=/opt/onnxruntime/lib:/usr/local/lib:/usr/lib/aarch64-linux-gnu:${LD_LIBRARY_PATH}
+
+WORKDIR /workspace
+
+COPY cpp_source /workspace/cpp_source
+COPY config.json /workspace/
+COPY config_multi_camera.json /workspace/
+
+RUN cd /workspace/cpp_source && \
+    mkdir -p build && cd build && \
+    cmake .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DONNXRUNTIME_LIB=/opt/onnxruntime/lib/libonnxruntime.so \
+        -DONNXRUNTIME_INCLUDE_DIR=/opt/onnxruntime/include && \
+    make -j$(nproc) && \
+    echo "Project build complete"
+
+WORKDIR /workspace
+
+CMD ["/bin/bash"]

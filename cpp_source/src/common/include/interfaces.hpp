@@ -70,7 +70,7 @@ public:
 class IStorageHandler {
 public:
     virtual ~IStorageHandler() = default;
-    virtual std::string saveClip(const ClipContainer& clip, std::map<uint64_t, std::vector<std::vector<float>>>& embeddings_map) = 0;
+    virtual std::string saveClip(const ClipContainer& clip, std::map<int64_t, std::vector<std::vector<float>>>& embeddings_map) = 0;
     // virtual bool saveEmbeddings(const std::vector<TrackedObject>& objects) = 0;
 };
 

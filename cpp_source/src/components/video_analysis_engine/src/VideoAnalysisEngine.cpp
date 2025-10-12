@@ -6,9 +6,9 @@ VideoAnalysisEngine::VideoAnalysisEngine(const VideoAnalysisConfig& config)
     : config_(config), is_running_(false) {
     frame_sampler_ = std::make_unique<UniformFrameSampler>();
     object_detector_ = std::make_unique<YOLOXDetector>(config_.object_detector.weights_path, config_.object_detector.number_of_threads, config_.object_detector.is_fp16, config_.object_detector.classes);
-    tracker_ = std::make_unique<nl_vision_analysis::SortTracker>(config_.tracker.max_age, config_.tracker.min_hits, config_.tracker.iou_threshold);
-    clip_image_encoder_ = std::make_unique<nl_vision_analysis::CLIPImageEncoder>(config_.image_encoder.model_path, config_.image_encoder.num_threads, config_.image_encoder.is_fp16); 
-    storage_handler_ = std::make_unique<nl_vision_analysis::MilvusStorageHandler>(config_.storage_handler.clip_storage_type, 
+    tracker_ = std::make_unique<nl_video_analysis::SortTracker>(config_.tracker.max_age, config_.tracker.min_hits, config_.tracker.iou_threshold);
+    clip_image_encoder_ = std::make_unique<nl_video_analysis::CLIPImageEncoder>(config_.image_encoder.model_path, config_.image_encoder.num_threads, config_.image_encoder.is_fp16); 
+    storage_handler_ = std::make_unique<nl_video_analysis::MilvusStorageHandler>(config_.storage_handler.clip_storage_type, 
                                                                                  config_.storage_handler.clip_storage_path,
                                                                                  config_.storage_handler.db_host,
                                                                                  config_.storage_handler.db_port,
@@ -194,7 +194,7 @@ void VideoAnalysisEngine::objectProcessingLoop() {
                 }
             }
         }
-        storage_handler_->saveClip(clip, tracket_to_embedding);
+        storage_handler_->saveClip(clip, tracklet_to_embeddings);
         clips_processed_++;
     }
 }

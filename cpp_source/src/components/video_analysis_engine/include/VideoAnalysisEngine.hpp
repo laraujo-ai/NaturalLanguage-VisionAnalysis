@@ -18,7 +18,7 @@
 #include "../../object_detection/include/yolox_detector.hpp"
 #include "../../vlm_engine/include/clip_image_encoder.hpp"
 #include "../../tracker/include/sort_tracker.hpp"
-#include "../../storage_hanlder/include/milvus_storage_handler.hpp"
+#include "../../storage_handler/include/milvus_storage_handler.hpp"
 #include "../../frame_sampler/include/frame_samplers.hpp"
 #include "../../../common/include/logger.hpp"
 #include "../../../common/include/benchmark.hpp"
@@ -34,6 +34,7 @@ private:
     std::vector<std::string> camera_ids_;
 
     std::unique_ptr<IFrameSampler> frame_sampler_;
+    
     // clip queue info
     std::queue<ClipContainer> clip_queue_;
     mutable std::mutex clip_queue_mutex_;
@@ -41,23 +42,18 @@ private:
     
     std::vector<std::thread> processing_threads_;
     std::atomic<bool> is_running_;
-
+    
     void clipProcessingLoop();
     void benchmarkReportingLoop();
+    void objectProcessingLoop();
 
     std::unique_ptr<YOLOXDetector> object_detector_;
-    std::unique_ptr<nl_vision_analysis::SortTracker> tracker_;
-    std::unique_ptr<nl_vision_analysis::CLIPImageEncoder> clip_image_encoder_;
-    void objectProcessingLoop();
+    std::unique_ptr<nl_video_analysis::SortTracker> tracker_;
+    std::unique_ptr<nl_video_analysis::CLIPImageEncoder> clip_image_encoder_;
+    std::unique_ptr<IStorageHandler> storage_handler_;
 
     // Benchmark tracking
     std::atomic<size_t> clips_processed_{0};
-
-    // std::unique_ptr<IStorageHandler> storage_handler_;
-    // std::queue<std::vector<TrackedObject>> tracked_objects_queue_;
-    // mutable std::mutex tracked_objects_mutex_;
-    // std::condition_variable tracked_objects_cv_;
-    // void storageProcessingLoop();
 
 public:
     VideoAnalysisEngine(const VideoAnalysisConfig& config = VideoAnalysisConfig{});

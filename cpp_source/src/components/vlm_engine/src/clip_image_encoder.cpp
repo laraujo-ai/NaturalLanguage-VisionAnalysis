@@ -2,7 +2,7 @@
 #include "../../../common/include/benchmark.hpp"
 #include <stdexcept>
 
-namespace nl_vision_analysis {
+namespace nl_video_analysis {
 
     CLIPImageEncoder::CLIPImageEncoder(const std::string& model_path, const int num_threads, bool is_fp16)
         : IBaseModel<const cv::Mat&, std::vector<float>>(model_path, num_threads),

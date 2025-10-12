@@ -56,27 +56,30 @@ message(STATUS "GStreamer include dirs: ${GSTREAMER_INCLUDE_DIRS}")
 
 find_library(MILVUS_LIB milvus_sdk
     HINTS
+        /usr/local/lib
         ${CMAKE_SOURCE_DIR}/../milvus-sdk-cpp/build/src
         ${CMAKE_SOURCE_DIR}/milvus-sdk-cpp/build/src
 )
 find_path(MILVUS_INCLUDE_DIR milvus/MilvusClient.h
     HINTS
+        /usr/local/include
         ${CMAKE_SOURCE_DIR}/../milvus-sdk-cpp/src/include
         ${CMAKE_SOURCE_DIR}/milvus-sdk-cpp/src/include
 )
 
 if(NOT MILVUS_LIB OR NOT MILVUS_INCLUDE_DIR)
-    message(FATAL_ERROR "Milvus SDK not found. Please build milvus-sdk-cpp first.")
+    message(FATAL_ERROR "Milvus SDK not found. Please run 'sudo make install' in milvus-sdk-cpp/build first.")
 endif()
 
 message(STATUS "Milvus SDK library: ${MILVUS_LIB}")
 message(STATUS "Milvus SDK include: ${MILVUS_INCLUDE_DIR}")
 
-add_library(milvus_sdk STATIC IMPORTED)
+add_library(milvus_sdk SHARED IMPORTED)
 set_target_properties(milvus_sdk PROPERTIES
     IMPORTED_LOCATION ${MILVUS_LIB}
     INTERFACE_INCLUDE_DIRECTORIES ${MILVUS_INCLUDE_DIR}
 )
+
 
 include_directories(
     ${ONNXRUNTIME_INCLUDE_DIR}
@@ -84,6 +87,8 @@ include_directories(
     ${GSTREAMER_INCLUDE_DIRS}
     ${GST_APP_INCLUDE_DIRS}
     ${MILVUS_INCLUDE_DIR}
+    ${Protobuf_INCLUDE_DIRS}
+    ${GRPC++_INCLUDE_DIRS}
 )
 
 add_subdirectory(src)
@@ -98,7 +103,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     object_detection
     onnxruntime
     sort_tracker
-    milvus_sdk
+    storage_handler
     vlm_engine
     ${GSTREAMER_LIBRARIES}
     ${GST_APP_LIBRARIES}

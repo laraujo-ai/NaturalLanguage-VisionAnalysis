@@ -7,6 +7,8 @@ target_link_libraries(video_analysis_engine PUBLIC
     object_detection
     sort_tracker
     vlm_engine
+    storage_handler
+    milvus_sdk
     ${OpenCV_LIBS}
     ${GSTREAMER_LIBRARIES}
     ${GST_APP_LIBRARIES}

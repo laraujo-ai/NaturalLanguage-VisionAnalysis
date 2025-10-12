@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../../common/include/interfaces.hpp"
+#include "../../../common/include/utils.hpp"
 #include "milvus/MilvusClient.h"
 #include "milvus/Status.h"
 #include "milvus/types/Constants.h"
@@ -21,9 +22,9 @@ namespace nl_video_analysis
                              const std::string& db_password);
 
         ~MilvusStorageHandler() override;
-        std::string saveClip(const ClipContainer& clip, std::map<uint64_t, std::vector<std::vector<float>>>& embeddings_map) override;
+        std::string saveClip(const ClipContainer& clip, std::map<int64_t, std::vector<std::vector<float>>>& embeddings_map) override;
 
-    private:
+        private:
         bool connectToDatabase();
         std::string saveClipToDisk(const ClipContainer& clip);
 
