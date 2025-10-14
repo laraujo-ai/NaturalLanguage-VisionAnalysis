@@ -257,17 +257,17 @@ VideoAnalysisConfig ConfigParser::parseFromFile(const std::string& filepath) {
             } else if (line.find("\"db_host\"") != std::string::npos) {
                 size_t colon = line.find(':');
                 if (colon != std::string::npos) {
-                    config.storage_handler.db_host = parseBool(line.substr(colon + 1));
+                    config.storage_handler.db_host = parseString(line.substr(colon + 1));
                 }
             } else if (line.find("\"db_user\"") != std::string::npos) {
                 size_t colon = line.find(':');
                 if (colon != std::string::npos) {
-                    config.storage_handler.db_user = parseBool(line.substr(colon + 1));
+                    config.storage_handler.db_user = parseString(line.substr(colon + 1));
                 }
             } else if (line.find("\"db_password\"") != std::string::npos) {
                 size_t colon = line.find(':');
                 if (colon != std::string::npos) {
-                    config.storage_handler.db_password = parseBool(line.substr(colon + 1));
+                    config.storage_handler.db_password = parseString(line.substr(colon + 1));
                 }
             }                                 
         }

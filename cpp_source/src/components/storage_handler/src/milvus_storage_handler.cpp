@@ -116,7 +116,6 @@ std::string MilvusStorageHandler::saveClipToDisk(const ClipContainer& clip) {
     return "";
 }
 
-// will need to pass the embeddings for the clip to this method as well
 std::string MilvusStorageHandler::saveClip(const ClipContainer& clip, std::map<int64_t, std::vector<std::vector<float>>>& embeddings_map) {
     if (!is_connected_) {
         LOG_INFO("[MilvusStorageHandler] Not connected to database, attempting to reconnect...");
